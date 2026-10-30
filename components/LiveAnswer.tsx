@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Baustein from "./Bausteine";
 import { sanitizeSvgLine } from "@/lib/sanitize";
-import { speak, stopSpeaking } from "@/lib/voice";
+import { prepare, play, stopSpeaking } from "@/lib/voice";
+import SceneFrame from "./SceneFrame";
 import type { AnswerMeta, BausteinName } from "@/lib/types";
 
 /** Zeilen-Zufuhr einer Antwort. Lab schiebt jede fertige Zeile hinein, LiveAnswer arbeitet sie der Reihe nach ab. */
@@ -11,7 +12,8 @@ export class SketchFeed {
   lines: string[] = [];
   ended = false;
   private wake: (() => void) | null = null;
-  push(line: string) { this.lines.push(line); this.wake?.(); }
+  onPush: ((line: string) => void) | null = null;
+  push(line: string) { this.lines.push(line); this.onPush?.(line); this.wake?.(); }
   end() { this.ended = true; this.wake?.(); }
   next(): Promise<string | null> {
     if (this.lines.length) return Promise.resolve(this.lines.shift() ?? null);
@@ -34,12 +36,18 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
   const [current, setCurrent] = useState(-1);
   const [baustein, setBaustein] = useState<{ name: BausteinName; raw: string } | null>(null);
   const [drawing, setDrawing] = useState(true);
+  const [scene, setScene] = useState<string | null>(null);
   const alive = useRef(true);
 
   useEffect(() => {
     alive.current = true;
     let speech: Promise<void> = Promise.resolve();
     let sayCount = 0;
+    // Jeden Satz sofort beim Eintreffen vorladen, damit die Stimme ohne Pause anschließt.
+    const audioQ: Promise<string | null>[] = [];
+    const pre = (line: string) => { if (line.startsWith("@say ")) audioQ.push(prepare(line.slice(5).trim(), voice)); };
+    feed.lines.forEach(pre);
+    feed.onPush = pre;
 
     const pen = (x: number, y: number, on = true) => {
       const p = penRef.current;
@@ -117,10 +125,13 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
           const idx = sayCount++;
           setSays((s) => [...s, text]);
           setCurrent(idx);
-          speech = speak(text, voice);
+          speech = play(audioQ.shift() ?? Promise.resolve(null), text);
         } else if (line.startsWith("@svg ")) {
           const el = sanitizeSvgLine(line.slice(5).trim());
           if (el) await drawEl(el);
+        } else if (line.startsWith("@htmlblock ")) {
+          try { setScene(JSON.parse(line.slice(11)) as string); } catch { /* unlesbar */ }
+          await wait(400);
         } else if (line.startsWith("@data ")) {
           try {
             const d = JSON.parse(line.slice(6)) as { baustein?: string; daten?: unknown };
@@ -137,13 +148,15 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
       onFinished();
     })();
 
-    return () => { alive.current = false; stopSpeaking(); };
+    return () => { alive.current = false; feed.onPush = null; stopSpeaking(); };
   }, [feed, voice, onFinished]);
 
   return (
     <>
       <h4>{meta.title}</h4>
-      {meta.kind === "frei" ? (
+      {scene ? (
+        <SceneFrame html={scene} />
+      ) : meta.kind === "frei" ? (
         <div className="ik-sheet">
           <svg ref={svgRef} viewBox="0 0 420 300" role="img" aria-label={meta.title}>
             <defs>

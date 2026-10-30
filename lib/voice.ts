@@ -1,44 +1,44 @@
 /**
- * Stimme: vorerst die eingebaute Sprachausgabe des Browsers (Web Speech API, speechSynthesis).
- * Platzhalter, bis Juan den Stimmen-Anbieter festlegt. Läuft lokal im Browser, nichts geht raus.
+ * Stimme über die eigene Route /api/iknow/tts (ElevenLabs auf dem Server).
+ * Jeder Satz wird sofort beim Eintreffen vorgeladen und dann der Reihe nach abgespielt,
+ * damit zwischen den Sätzen keine Pause entsteht.
  */
-let cachedVoice: SpeechSynthesisVoice | null = null;
+let current: HTMLAudioElement | null = null;
+let disabledReason: string | null = null;
 
-function germanVoice(): SpeechSynthesisVoice | null {
-  if (cachedVoice) return cachedVoice;
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  const de = voices.filter((v) => v.lang.toLowerCase().startsWith("de"));
-  cachedVoice = de.find((v) => /natural|neural|premium|enhanced|google/i.test(v.name)) ?? de[0] ?? null;
-  return cachedVoice;
+function code(): string {
+  try { return sessionStorage.getItem("iknow-code") ?? ""; } catch { return ""; }
 }
 
-export function voiceAvailable(): boolean {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
-}
+export function voiceProblem(): string | null { return disabledReason; }
 
-/** Spricht einen Satz. Löst auf, wenn er zu Ende gesprochen ist (oder sofort, wenn keine Stimme da ist). */
-export function speak(text: string, enabled: boolean): Promise<void> {
-  if (!enabled || !voiceAvailable() || !text.trim()) {
-    // Ohne Stimme: Lesezeit simulieren, damit der Rhythmus von Satz und Zeichnung bleibt.
-    return new Promise((r) => setTimeout(r, Math.min(2600, 500 + text.length * 28)));
+/** Lädt die Audiodatei für einen Satz. Gibt null zurück, wenn keine Stimme verfügbar ist. */
+export async function prepare(text: string, enabled: boolean): Promise<string | null> {
+  if (!enabled || !text.trim() || disabledReason) return null;
+  try {
+    const r = await fetch("/api/iknow/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-iknow-code": code() }, body: JSON.stringify({ text }) });
+    if (r.status === 501) { disabledReason = "Stimme ist noch nicht eingerichtet."; return null; }
+    if (!r.ok) return null;
+    return URL.createObjectURL(await r.blob());
+  } catch {
+    return null;
   }
-  return new Promise((resolve) => {
-    const u = new SpeechSynthesisUtterance(text);
-    const v = germanVoice();
-    if (v) u.voice = v;
-    u.lang = v?.lang ?? "de-DE";
-    u.rate = 1.04;
+}
+
+/** Spielt einen vorbereiteten Satz. Ohne Audio wird die Lesezeit abgewartet, damit der Rhythmus bleibt. */
+export function play(audio: Promise<string | null>, text: string): Promise<void> {
+  return audio.then((src) => new Promise<void>((resolve) => {
+    if (!src) { setTimeout(resolve, Math.min(2600, 500 + text.length * 28)); return; }
+    const a = new Audio(src);
+    current = a;
     let done = false;
-    const finish = () => { if (!done) { done = true; resolve(); } };
-    u.onend = finish;
-    u.onerror = finish;
-    // Sicherheitsnetz, falls ein Browser onend nicht feuert
-    setTimeout(finish, 1500 + text.length * 120);
-    window.speechSynthesis.speak(u);
-  });
+    const finish = () => { if (done) return; done = true; URL.revokeObjectURL(src); if (current === a) current = null; resolve(); };
+    a.onended = finish;
+    a.onerror = finish;
+    a.play().catch(finish);
+  }));
 }
 
 export function stopSpeaking(): void {
-  if (voiceAvailable()) window.speechSynthesis.cancel();
+  if (current) { current.pause(); current = null; }
 }

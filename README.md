@@ -16,6 +16,9 @@ Bereich umrahmen, fragen, IKnow zeigt die Antwort als Grafik. Testlabor mit nach
 | `IKNOW_ACCESS_CODE` | Zugangscode für das Testlabor. Ohne ihn antwortet die API in Production nicht. |
 | `IKNOW_DATA_RESIDENCY` | `eu` erst, wenn das OpenAI-Projekt in der Region Europa liegt. Bis dahin leer lassen. |
 | `IKNOW_MOCK` | `1` = Probelauf ohne Modell |
+| `ELEVENLABS_API_KEY` | Schlüssel von ElevenLabs für die Stimme (Sensitive) |
+| `ELEVENLABS_VOICE_ID` | Voice-ID der gewünschten Stimme |
+| `ELEVENLABS_MODEL` | optional, Standard `eleven_multilingual_v2`, schneller: `eleven_flash_v2_5` |
 
 Ohne `OPENAI_API_KEY` läuft automatisch der Probelauf mit vorgefertigten Antworten.
 

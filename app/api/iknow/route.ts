@@ -38,6 +38,12 @@ function validate(body: unknown): AskRequest | string {
     if (typeof b.crop !== "string" || !b.crop.startsWith("data:image/")) return "Bildausschnitt fehlt.";
     if (b.crop.length > MAX_IMAGE_CHARS || (b.full && b.full.length > MAX_IMAGE_CHARS)) return "Bild ist zu groß.";
   }
+  if (b.history !== undefined) {
+    if (!Array.isArray(b.history) || b.history.length > 3) return "Verlauf ungültig.";
+    for (const h of b.history) {
+      if (!h || typeof h.question !== "string" || typeof h.answer !== "string" || h.question.length > 2000 || h.answer.length > 16000) return "Verlauf ungültig.";
+    }
+  }
   return b as AskRequest;
 }
 
@@ -90,7 +96,13 @@ export async function POST(req: Request): Promise<Response> {
           store: false,
           stream: true,
           instructions: SYSTEM_PROMPT,
-          input: [{ role: "user", content: buildUserContent(ask) }],
+          input: [
+            ...(ask.history ?? []).flatMap((h) => [
+              { role: "user" as const, content: h.question },
+              { role: "assistant" as const, content: h.answer },
+            ]),
+            { role: "user" as const, content: buildUserContent(ask) },
+          ],
         });
 
         let first: number | null = null;

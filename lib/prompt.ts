@@ -24,6 +24,7 @@ Antworte ausschließlich in Zeilen. Jede Zeile beginnt mit genau einem dieser Pr
 @say Ein gesprochener Satz.
 @svg Genau EIN SVG-Element in einer Zeile.
 @data {"baustein":"Name","daten":{...}}
+@html (allein in der Zeile, danach folgen Zeilen mit HTML, abgeschlossen mit einer Zeile @endhtml)
 @end
 
 Reihenfolge: zuerst @meta. Dann abwechselnd @say und die passenden @svg-Zeilen, so wie man beim Erklären zeichnet: erst einen Satz sagen, dann zeichnen, was der Satz meint. Insgesamt 3 bis 4 @say-Sätze. Zum Schluss @end.
@@ -35,6 +36,13 @@ ZEICHNEN MIT @svg (bei kind "frei")
 - Höchstens 28 @svg-Zeilen. Beschriftungen mit text, font-size 11 bis 16, font-weight 600 oder 700.
 - Farben: Teal #0B5761 (bestätigt, erledigt), Schwarz #10242A (abgerechnet), Orange #EA7A3C (zu prüfen, offen), Grau #C9D3D2 (leer), Text #3D5156, Flächen hell (#F4F7F6, #FFF0E6, #E6F0F0).
 - Ruhig und hochwertig, großzügige Abstände, abgerundete Ecken (rx 8 bis 12).
+- Zeichne wirklich: Formen, Pfeile, Verbindungen, Markierungen, kleine Skizzen der Sache selbst (z. B. Zahnbogen, Zeitstrahl, Geldweg). Keine reinen Textkästen.
+
+3D ODER ANIMATION MIT @html (nur wenn jemand ausdrücklich 3D, räumlich oder Animation möchte)
+- Erst ein @say, dann eine Zeile @html, dann das HTML über mehrere Zeilen, dann eine Zeile @endhtml, danach weitere @say.
+- Inhalt: ein <canvas> und ein <script> mit eigenem JavaScript (Canvas 2D mit eigener 3D-Projektion oder WebGL). Keine externen Dateien, keine Bibliotheken, kein Netz.
+- Die Szene dreht sich langsam von selbst, mit der Maus oder dem Finger ziehen dreht sie. Breite 100 Prozent, Höhe 300px, transparenter Hintergrund, Farben wie oben.
+- Höchstens 9000 Zeichen. Beschriftungen im Canvas lesbar, font 600 13px system-ui.
 
 BAUSTEIN MIT @data (bei kind "baustein")
 Statt @svg-Zeilen genau eine @data-Zeile direkt nach dem ersten @say. Bausteine und ihre daten:
@@ -48,16 +56,19 @@ Statt @svg-Zeilen genau eine @data-Zeile direkt nach dem ersten @say. Bausteine 
 function renderRule(pref: AskRequest["render"]): string {
   if (pref === "baustein") return "Vorgabe: kind MUSS \"baustein\" sein.";
   if (pref === "frei") return "Vorgabe: kind MUSS \"frei\" sein. Zeichne selbst mit @svg.";
-  return "Wähle selbst: baustein, wenn einer gut passt, sonst frei zeichnen.";
+  return "Wähle selbst. Bevorzugt frei zeichnen. Baustein nur, wenn die Antwort im Kern eine Zeitleiste, ein Topf oder eine Zahnreihe ist.";
 }
 
 type ContentPart =
   | { type: "input_text"; text: string }
   | { type: "input_image"; image_url: string; detail: "low" | "high" | "auto" };
 
+export const FOLLOWUP_NOTE = "Das ist eine Folgefrage zum selben umrandeten Bereich. Beziehe dich auf deine vorige Antwort und setze den Wunsch um (z. B. als 3D, genauer, einfacher).";
+
 export function buildUserContent(req: AskRequest): ContentPart[] {
   const parts: ContentPart[] = [];
   const head = [`Frage: ${req.question.trim()}`, renderRule(req.render)];
+  if (req.history?.length) head.push(FOLLOWUP_NOTE);
   if (req.source === "daten") {
     head.push(
       "Quelle: Daten-Modus. Die App hat die Einträge im umrahmten Bereich direkt geliefert.",

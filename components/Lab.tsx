@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import PracticeScreen, { PAGE_CONTEXT } from "./PracticeScreen";
 import LiveAnswer, { SketchFeed } from "./LiveAnswer";
-import { stopSpeaking, voiceAvailable } from "@/lib/voice";
+import { stopSpeaking } from "@/lib/voice";
 import type { AnswerMeta, AskRequest, ContextItem, RenderPref, Source, StreamEvent, Tier, Usage } from "@/lib/types";
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -44,8 +44,19 @@ function collectItems(poly: Pt[]): ContextItem[] {
   const els = Array.from(document.querySelectorAll<HTMLElement>("[data-iknow-key]")).filter((el) => {
     if (el.tagName === "CANVAS") return false;
     const r = el.getBoundingClientRect();
-    return r.width > 0 && coverage(r, poly) >= 0.5;
+    return r.width > 0 && coverage(r, poly) >= 0.35;
   });
+  if (!els.length) {
+    // Nichts deutlich getroffen: den Eintrag nehmen, der am stärksten in der Form liegt.
+    let best: HTMLElement | null = null, bestC = 0.08;
+    document.querySelectorAll<HTMLElement>("[data-iknow-key]").forEach((el) => {
+      if (el.tagName === "CANVAS") return;
+      const r = el.getBoundingClientRect();
+      const c = r.width ? coverage(r, poly) : 0;
+      if (c > bestC || (c === bestC && best && best.contains(el))) { best = el; bestC = c; }
+    });
+    if (best) els.push(best);
+  }
   const inner = els.filter((el) => !els.some((o) => o !== el && el.contains(o)));
   const out: ContextItem[] = inner.map((el) => {
     let data: Record<string, unknown> = {};
@@ -89,8 +100,10 @@ export default function Lab() {
   const [feed, setFeed] = useState<SketchFeed | null>(null);
   const [voice, setVoice] = useState(true);
   const [finished, setFinished] = useState(false);
-  const [hasVoice, setHasVoice] = useState(false);
-  useEffect(() => { setHasVoice(voiceAvailable()); }, []);
+  const [history, setHistory] = useState<{ question: string; answer: string }[]>([]);
+  const [followUp, setFollowUp] = useState("");
+  const [shift, setShift] = useState({ x: 0, y: 0 });
+  const anchorsRef = useRef<{ el: Element | null; top: number; left: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [runs, setRuns] = useState<Run[]>([]);
@@ -126,7 +139,7 @@ export default function Lab() {
   };
 
   const reset = useCallback(() => {
-    stopSpeaking(); feedRef.current?.end();
+    stopSpeaking(); feedRef.current?.end(); setHistory([]); setFollowUp(""); setShift({ x: 0, y: 0 }); anchorsRef.current = [];
     setPhase("idle"); setRect(null); setPts([]); drawingRef.current = false; setItems([]); setMeta(null); setFeed(null); setFinished(false); setError(null); setStill(null); setCrop(null); setFull(null);
     setAskPos(null); setAnsPos(null); clearFocus();
   }, []);
@@ -138,6 +151,21 @@ export default function Lab() {
   }, [reset]);
 
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
+
+  /* Umrandung und Pfeil wandern mit, wenn darunter gescrollt wird */
+  useEffect(() => {
+    if (phase === "idle" || phase === "draw") return;
+    const on = () => {
+      let dx = 0, dy = 0;
+      for (const a of anchorsRef.current) {
+        if (!a.el) { dx += a.left - window.scrollX; dy += a.top - window.scrollY; }
+        else { dx += a.left - a.el.scrollLeft; dy += a.top - a.el.scrollTop; }
+      }
+      setShift({ x: dx, y: dy });
+    };
+    window.addEventListener("scroll", on, true);
+    return () => window.removeEventListener("scroll", on, true);
+  }, [phase]);
 
   /* ---------- Screenshot-Modus: offizielle Screen Capture API ---------- */
   const stopSharing = () => {
@@ -260,6 +288,16 @@ export default function Lab() {
     const box = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
     if (poly.length < 3 || box.w < 12 || box.h < 12) { setPts([]); return; }
     setRect(box);
+    // Umrandung an den Inhalt heften: Scrollpositionen merken, beim Scrollen mitwandern.
+    const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+    const under = document.elementsFromPoint(cx, cy).find((e) => !e.closest(".ik-layer,.ik-lasso,.ik-ask,.ik-ans,.ik-fab"));
+    const anchors: { el: Element | null; top: number; left: number }[] = [{ el: null, top: window.scrollY, left: window.scrollX }];
+    for (let e = under?.parentElement ?? null; e; e = e.parentElement) {
+      const st = getComputedStyle(e);
+      if (/(auto|scroll)/.test(st.overflowY + st.overflowX) && (e.scrollHeight > e.clientHeight || e.scrollWidth > e.clientWidth)) anchors.push({ el: e, top: e.scrollTop, left: e.scrollLeft });
+    }
+    anchorsRef.current = anchors;
+    setShift({ x: 0, y: 0 });
     if (source === "daten") {
       const found = collectItems(poly);
       setItems(found);
@@ -295,12 +333,16 @@ export default function Lab() {
   useLayoutEffect(() => { if (phase === "answer" && (meta || error)) setAnsPos(place(ansRef.current, false, meta ? (meta.kind === "frei" ? 620 : 500) : undefined)); }, [phase, meta, error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- Fragen ---------- */
-  async function send(code?: string) {
-    if (!question.trim()) return;
-    setPhase("thinking"); setProgress(0); setError(null); setStill(null);
+  async function send(code?: string, follow?: string) {
+    const q = (follow ?? question).trim();
+    if (!q) return;
+    const hist = follow ? history.slice(-3) : [];
+    if (!follow) setHistory([]);
+    stopSpeaking(); feedRef.current?.end();
+    setPhase("thinking"); setProgress(0); setError(null); setStill(null); setMeta(null); setFeed(null); setFinished(false);
     const body: AskRequest = source === "daten"
-      ? { source, tier, render, question, items, page: PAGE_CONTEXT }
-      : { source, tier, render, question, crop: crop ?? undefined, full: full ?? undefined };
+      ? { source, tier, render, question: q, items, page: PAGE_CONTEXT, history: hist.length ? hist : undefined }
+      : { source, tier, render, question: q, crop: crop ?? undefined, full: full ?? undefined, history: hist.length ? hist : undefined };
     try {
       const res = await fetch("/api/iknow", { method: "POST", headers: { "Content-Type": "application/json", "x-iknow-code": code ?? readCode() }, body: JSON.stringify(body) });
       if (res.status === 401) { setNeedCode(true); setPhase("ask"); return; }
@@ -312,10 +354,18 @@ export default function Lab() {
       const dec = new TextDecoder();
       const f = new SketchFeed();
       feedRef.current = f;
-      let buf = "", text = "", gotMeta = false;
+      let buf = "", text = "", gotMeta = false, rawAll = "", html: string[] | null = null;
       const handleLine = (raw: string) => {
+        rawAll += raw + "\n";
+        // 3D-Block: Zeilen zwischen @html und @endhtml sammeln und als Ganzes weitergeben
+        if (html) {
+          if (raw.trim() === "@endhtml") { f.push("@htmlblock " + JSON.stringify(html.join("\n"))); html = null; }
+          else if (html.join("\n").length < 20000) html.push(raw);
+          return;
+        }
         const line = raw.trim();
         if (!line) return;
+        if (line === "@html") { html = []; return; }
         if (line.startsWith("@meta")) {
           if (gotMeta) return;
           let m: AnswerMeta = { kind: render === "baustein" ? "baustein" : "frei", title: "IKnow erklärt", focus: [] };
@@ -354,6 +404,7 @@ export default function Lab() {
           else if (ev.t === "done") {
             if (text.trim()) handleLine(text);
             f.end();
+            setHistory((h) => [...(follow ? hist : []), { question: q, answer: rawAll.slice(0, 16000) }].slice(-3));
             if (!gotMeta) throw new Error("Die Antwort kam ohne Kopfzeile an.");
             runId.current += 1;
             setRuns((r) => [{ id: runId.current, source, tier, render, kind: "", title: "", first: ev.ms.first, total: ev.ms.total, usage: ev.usage, servedTier: ev.servedTier, cost: ev.costUsd, mock: ev.mock }, ...r].slice(0, 30));
@@ -368,12 +419,15 @@ export default function Lab() {
 
   const arrow = (() => {
     if (phase !== "answer" || !rect || !ansPos || !ansRef.current) return null;
+    const rect0 = rect;
+    { const rect = { ...rect0, x: rect0.x + shift.x, y: rect0.y + shift.y };
     const w = ansRef.current.offsetWidth, h = Math.min(ansRef.current.offsetHeight || 400, innerHeight - ansPos.y - 12);
     const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
     let ax = ansPos.x > cx ? ansPos.x : ansPos.x + w, ay = Math.max(ansPos.y + 24, Math.min(ansPos.y + h - 24, cy));
     let ex = cx < ax ? rect.x + rect.w : rect.x, ey = cy;
     if (ansPos.y > rect.y + rect.h) { ax = Math.max(ansPos.x + 30, Math.min(ansPos.x + w - 30, cx)); ay = ansPos.y; ex = cx; ey = rect.y + rect.h; }
     return <path d={`M${ax} ${ay} Q ${(ax + ex) / 2} ${Math.min(ay, ey) - 30} ${ex} ${ey}`} fill="none" stroke="#1A8C97" strokeWidth={2.5} strokeDasharray="5 5" />;
+    }
   })();
 
   const seg = <T extends string>(val: T, set: (v: T) => void, opts: [T, string][], label: string) => (
@@ -394,7 +448,7 @@ export default function Lab() {
         {seg(tier, setTier, [["ultrafast", "Ultrafast"], ["standard", "Standard"]], "Modus")}
         <div className="lab-right">
           {sharing && <button type="button" className="lab-btn" onClick={stopSharing}>Freigabe beenden</button>}
-          {hasVoice && <button type="button" className={"lab-btn" + (voice ? " on" : "")} onClick={() => { setVoice((v) => !v); stopSpeaking(); }} aria-pressed={voice}>{voice ? "Stimme an" : "Stimme aus"}</button>}
+          {<button type="button" className={"lab-btn" + (voice ? " on" : "")} onClick={() => { setVoice((v) => !v); stopSpeaking(); }} aria-pressed={voice}>{voice ? "Stimme an" : "Stimme aus"}</button>}
           <button type="button" className="lab-btn" onClick={() => setShowRuns((s) => !s)}>Messwerte {runs.length ? `(${runs.length})` : ""}</button>
           {mockMode !== null && <span className={"lab-pill " + (mockMode ? "mock" : "live")}>{mockMode ? "Probelauf ohne Modell" : "Live mit Modell"}</span>}
         </div>
@@ -418,7 +472,7 @@ export default function Lab() {
       {pts.length > 1 && phase !== "idle" && (
         <svg className={"ik-lasso" + (phase === "draw" ? " drawing" : "")} aria-hidden="true">
           {phase === "draw" && <path className="dim" d={`M0 0H${innerWidth}V${innerHeight}H0Z ${pathOf(pts, true)}`} fillRule="evenodd" />}
-          <path className="shape" d={pathOf(pts, !drawingRef.current)} />
+          <path className="shape" d={pathOf(pts, !drawingRef.current)} transform={`translate(${shift.x} ${shift.y})`} />
         </svg>
       )}
 
@@ -457,7 +511,14 @@ export default function Lab() {
             <div className="top"><span className="lbl">IKnow zeigt{meta ? (meta.kind === "frei" ? " · zeichnet frei" : " · Baustein") : ""}</span><button className="x" type="button" onClick={reset} aria-label="Schließen">✕</button></div>
             {error ? <p className="ik-warn">{error}</p> : meta && feed && (
               <LiveAnswer meta={meta} feed={feed} voice={voice} onFinished={onFinished} footer={
-                runs[0] && finished ? <div className="meta">{runs[0].mock ? "Probelauf" : `${runs[0].servedTier ?? tier}`} · erste Antwort {runs[0].first ?? "?"} ms · Text fertig {runs[0].total} ms{runs[0].usage ? ` · ${runs[0].usage.input}/${runs[0].usage.output} Tokens` : ""}{runs[0].cost !== null ? ` · ca. $${runs[0].cost.toFixed(3)}` : ""}</div> : null
+                finished ? <>
+                <div className="ik-follow">
+                  <input value={followUp} onChange={(e) => setFollowUp(e.target.value)} placeholder="Weiter fragen, z. B. „Zeig das als 3D“" onKeyDown={(e) => { if (e.key === "Enter" && followUp.trim()) { const f2 = followUp; setFollowUp(""); send(undefined, f2); } }} aria-label="Folgefrage" />
+                  <button type="button" disabled={!followUp.trim()} onClick={() => { const f2 = followUp; setFollowUp(""); send(undefined, f2); }}>Weiter</button>
+                </div>
+                <div className="ik-chips">{["Zeig das als 3D", "Einfacher erklären", "Genauer, mit Zahlen"].map((c) => <button key={c} type="button" onClick={() => send(undefined, c)}>{c}</button>)}</div>
+                {runs[0] && <div className="meta">{runs[0].mock ? "Probelauf" : `${runs[0].servedTier ?? tier}`} · erste Antwort {runs[0].first ?? "?"} ms · Text fertig {runs[0].total} ms{runs[0].usage ? ` · ${runs[0].usage.input}/${runs[0].usage.output} Tokens` : ""}{runs[0].cost !== null ? ` · ca. $${runs[0].cost.toFixed(3)}` : ""}</div>}
+                </> : null
               } />
             )}
           </div>

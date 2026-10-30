@@ -30,6 +30,8 @@ export interface AskRequest {
   /** Screenshot-Modus: Ausschnitt und Gesamtbild als data:image/jpeg;base64,... */
   crop?: string;
   full?: string;
+  /** Folgefragen: vorige Fragen und Antworten (Rohtext), höchstens 3 */
+  history?: { question: string; answer: string }[];
 }
 
 /** Kopfzeile einer Antwort (@meta). */
