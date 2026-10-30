@@ -32,7 +32,7 @@ export async function POST(req: Request): Promise<Response> {
     const r = await client.audio.transcriptions.create({
       model: process.env.IKNOW_STT_MODEL || "gpt-4o-transcribe",
       file: await toFile(buf, `diktat.${ext}`, { type }),
-      language: "de",
+      // keine feste Sprache: das Modell erkennt Deutsch, Spanisch, Englisch usw. selbst
     });
     return Response.json({ text: (r.text ?? "").trim() });
   } catch (err) {

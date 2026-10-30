@@ -35,11 +35,10 @@ export async function POST(req: Request): Promise<Response> {
   const r = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "xi-api-key": key, Accept: "audio/mpeg" },
-    // language_code nur bei Modellen, die Sprachvorgabe unterstützen (Flash v2.5, Turbo v2.5)
     body: JSON.stringify({
       text,
       model_id: model,
-      ...(/_v2_5$/.test(model) ? { language_code: "de" } : {}),
+      // keine language_code-Vorgabe: die mehrsprachigen ElevenLabs-Modelle erkennen die Sprache des Texts selbst
       // Lebendiger sprechen: weniger Stabilität, mehr Stil (offizielle voice_settings von ElevenLabs).
       voice_settings: {
         stability: num(process.env.ELEVENLABS_STABILITY, 0.3),
