@@ -38,7 +38,7 @@ export interface AskRequest {
 
 /** Kopfzeile einer Antwort (@meta). */
 export interface AnswerMeta {
-  kind: "baustein" | "frei";
+  kind: "baustein" | "frei" | "kiefer";
   title: string;
   focus: string[];
 }

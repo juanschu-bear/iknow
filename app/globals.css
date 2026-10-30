@@ -158,3 +158,20 @@
 .ik-know .kghost{border:0;border-radius:12px;height:40px;padding:0 14px;font:inherit;font-weight:700;background:var(--accent-soft);color:var(--accent);cursor:pointer}
 @keyframes ikfade{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.ik-know,.ik-know-back{animation:none}}
+
+/* ===== Kiefer-Szene ===== */
+.ik-jaw{position:relative;border-radius:16px;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#fff 0%,#f3f5f1 58%,#e6ebe7 100%);box-shadow:inset 0 0 0 1px var(--line)}
+.ik-jaw canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.ik-jaw canvas:active{cursor:grabbing}
+.ik-jaw-tag{position:absolute;left:10px;bottom:10px;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#3D5156;background:rgba(255,255,255,.88);padding:3px 9px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--line)}
+.ik-jaw-fail{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--fg3)}
+.ik-points{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px}
+.ik-points li{position:relative;padding:7px 10px 7px 26px;border-radius:11px;font-size:13.5px;line-height:1.4;color:var(--fg3);background:#F6F8F7;transition:color .3s ease,background-color .3s ease,box-shadow .3s ease}
+.ik-points li::before{content:"";position:absolute;left:11px;top:13px;width:7px;height:7px;border-radius:50%;background:#C9D3D2;transition:background-color .3s ease}
+.ik-points li.done{color:var(--fg2)}
+.ik-points li.done::before{background:#1A8C97}
+.ik-points li.now{color:var(--fg);font-weight:650;background:#E9F4F3;box-shadow:inset 0 0 0 1px rgba(26,140,151,.35)}
+.ik-points li.now::before{background:#EA7A3C}
+.ik-spoken{margin-top:10px;font-size:12.5px}
+.ik-spoken summary{cursor:pointer;color:var(--accent);font-weight:650}
+.ik-spoken p{margin:8px 0 0;font-size:13px;line-height:1.55;color:var(--fg2)}

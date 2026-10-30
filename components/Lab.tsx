@@ -432,7 +432,7 @@ export default function Lab() {
           let m: AnswerMeta = { kind: render === "baustein" ? "baustein" : "frei", title: "IKnow erklärt", focus: [] };
           try {
             const j = JSON.parse(line.slice(5)) as Partial<AnswerMeta>;
-            m = { kind: j.kind === "baustein" ? "baustein" : "frei", title: String(j.title ?? m.title).slice(0, 90), focus: Array.isArray(j.focus) ? j.focus.filter((k): k is string => typeof k === "string") : [] };
+            m = { kind: j.kind === "baustein" ? "baustein" : j.kind === "kiefer" ? "kiefer" : "frei", title: String(j.title ?? m.title).slice(0, 90), focus: Array.isArray(j.focus) ? j.focus.filter((k): k is string => typeof k === "string") : [] };
           } catch { /* Standardkopf */ }
           gotMeta = true;
           clearFocus();
@@ -572,7 +572,7 @@ export default function Lab() {
         <>
           <svg className="ik-arrow" aria-hidden="true">{arrow}</svg>
           <div className="ik-ans" ref={ansRef} style={ansPos ? { left: ansPos.x, top: ansPos.y, maxHeight: innerHeight - ansPos.y - 12 } : { visibility: "hidden", left: 0, top: 0 }} role="dialog" aria-live="polite">
-            <div className="top"><span className="lbl">IKnow zeigt{meta ? (meta.kind === "frei" ? " · zeichnet frei" : " · Baustein") : ""}</span><span className="top-act"><button className="redo" type="button" onClick={redraw}>↺ Neu umranden</button><button className="x" type="button" onClick={reset} aria-label="Schließen">✕</button></span></div>
+            <div className="top"><span className="lbl">IKnow zeigt{meta ? (meta.kind === "frei" ? " · zeichnet frei" : meta.kind === "kiefer" ? " · 3D-Szene" : " · Baustein") : ""}</span><span className="top-act"><button className="redo" type="button" onClick={redraw}>↺ Neu umranden</button><button className="x" type="button" onClick={reset} aria-label="Schließen">✕</button></span></div>
             {error ? <p className="ik-warn">{error}</p> : meta && feed && (
               <LiveAnswer meta={meta} feed={feed} voice={voice} onFinished={onFinished} onSceneError={(msg) => {
                 if (sceneRetry.current) return;

@@ -6,18 +6,56 @@ import type { AskRequest } from "./types";
  */
 export function mockLines(req: AskRequest): string[] {
   const keys = (req.items ?? []).map((i) => i.key);
-  if (/3d|räumlich/i.test(req.question)) {
+  if (/aligner|schiene/i.test(req.question)) {
+    const d = (o: object) => "@do " + JSON.stringify(o);
     return [
-      '@meta {"kind":"frei","title":"Leas Oberkiefer in 3D","focus":["B-24"]}',
-      "@say Hier ist der Bogen räumlich, du kannst ihn mit der Maus drehen.",
-      "@three",
-      "const curve = new THREE.CatmullRomCurve3(Array.from({ length: 12 }, (_, i) => { const t = i / 11 * Math.PI; return new THREE.Vector3(-Math.cos(t) * 2.6, 0, -Math.sin(t) * 1.9); }));",
-      "scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 80, 0.04, 8, false), mat(C.teal, { metalness: 0.7, roughness: 0.25 })));",
-      "for (let i = 0; i < 10; i++) { const p = curve.getPoint(0.05 + i * 0.1); const t = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.62, 0.34), mat(C.tooth, { roughness: 0.6 })); t.position.set(p.x, -0.06, p.z); t.lookAt(0, -0.06, 0.6); scene.add(t);",
-      "  const b = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.17, 0.07), mat(i === 8 ? C.orange : C.ink, { metalness: 0.5 })); b.position.copy(t.position); b.lookAt(0, 0, 0.6); b.translateZ(-0.2); scene.add(b); }",
-      "const p8 = curve.getPoint(0.85); label('Zahn 24', p8.x + 0.3, 0.8, p8.z, '#9A3412'); label('Draht zieht die Zähne in Form', 0, 1.3, -1.9, '#0B5761');",
-      "@endthree",
-      "@say Orange ist das Bracket an Zahn 24, das noch geprüft wird.",
+      '@meta {"kind":"kiefer","title":"So bewegen Aligner die Zähne","focus":[]}',
+      "@say Schau mal, hier siehst du einen Oberkiefer, bei dem die Frontzähne zu eng stehen und sich gegenseitig verdrehen.",
+      "@point Ausgangslage: Front steht eng",
+      d({ cmd: "kiefer", kiefer: "OK" }), d({ cmd: "engstand", kiefer: "OK", bereich: "front", staerke: "stark" }), d({ cmd: "kamera", ansicht: "front" }),
+      "@say Bei Alignern klebt man zuerst kleine Halter auf einige Zähne, die heißen Attachments und geben der Schiene Griff.",
+      "@point Attachments geben der Schiene Halt",
+      d({ cmd: "attachments", kiefer: "OK", von: "13", bis: "23" }),
+      "@say Dann kommt die durchsichtige Schiene drüber, und jede Schiene ist ein kleines bisschen anders geformt als die Zähne gerade stehen.",
+      "@point Jede Schiene minimal versetzt",
+      d({ cmd: "schiene", kiefer: "OK", an: true }), d({ cmd: "kamera", ansicht: "schraeg" }),
+      "@say Das Spannende ist: Die Zähne folgen dieser Form Schritt für Schritt, alle 1 bis 2 Wochen gibt es die nächste Schiene.",
+      "@point Schrittweise Bewegung, Schiene für Schiene",
+      d({ cmd: "einreihen", kiefer: "OK", dauer: 5, schritte: 4 }),
+      "@say Am Ende stehen die Zähne in einer schönen Reihe, die Schiene und die Attachments kommen wieder ab.",
+      "@point Ziel erreicht, Schiene ab",
+      d({ cmd: "entfernen", was: "schiene" }), d({ cmd: "entfernen", was: "attachments" }),
+      "@say Damit nichts zurückwandert, hält danach ein dünner Retainer innen die Front fest.",
+      "@point Retainer hält das Ergebnis",
+      d({ cmd: "retainer", kiefer: "OK" }), d({ cmd: "schild", zahn: "21", text: "Retainer innen" }),
+      "@end",
+    ];
+  }
+  if (/3d|räumlich|engstand|bracket|draht|spange/i.test(req.question)) {
+    const d = (o: object) => "@do " + JSON.stringify(o);
+    return [
+      '@meta {"kind":"kiefer","title":"So reihen Brackets und Draht die Zähne ein","focus":[]}',
+      "@say Schau mal, das ist ein Mustermodell vom Oberkiefer, und vorne stehen die Zähne zu eng, sie drehen sich und schieben sich übereinander.",
+      "@point Engstand in der Front",
+      d({ cmd: "kiefer", kiefer: "OK" }), d({ cmd: "engstand", kiefer: "OK", bereich: "front", staerke: "stark" }), d({ cmd: "kamera", ansicht: "oben" }),
+      "@say Zuerst kommen hinten Bänder um die großen Backenzähne, die sind sozusagen die Anker.",
+      "@point Bänder als Anker an den 6ern",
+      d({ cmd: "baender", kiefer: "OK" }), d({ cmd: "kamera", ansicht: "schraeg" }),
+      "@say Dann setzt man auf jeden Zahn ein kleines Bracket, das ist der Halter für den Draht.",
+      "@point Bracket auf jeden Zahn",
+      d({ cmd: "brackets", kiefer: "OK" }),
+      "@say Jetzt wird der Draht eingefädelt, und du siehst, wie er sich erst mal an die schiefen Zähne anpassen muss.",
+      "@point Draht folgt erst den schiefen Zähnen",
+      d({ cmd: "draht", kiefer: "OK", art: "duenn" }), d({ cmd: "markiere", zaehne: ["12", "22"], farbe: "orange" }),
+      "@say Der Draht will aber in seine runde Form zurück, und genau diese Kraft schiebt die Zähne ganz sanft in Richtung Reihe.",
+      "@point Draht will zurück in Form",
+      d({ cmd: "pfeil", zahn: "12", richtung: "aussen", text: "sanfte Kraft" }), d({ cmd: "pfeil", zahn: "21", richtung: "innen" }),
+      "@say Über Monate baut sich der Knochen um, und die Zähne gleiten Stück für Stück an ihren Platz.",
+      "@point Knochen baut um, Zähne reihen sich ein",
+      d({ cmd: "leeren" }), d({ cmd: "einreihen", kiefer: "OK", dauer: 4 }),
+      "@say Am Ende ist der Draht schön gleichmäßig rund, und die Front steht ordentlich in einer Linie.",
+      "@point Ergebnis: gerade Front",
+      d({ cmd: "kamera", ansicht: "front" }), d({ cmd: "schild", zahn: "11", text: "Front ausgerichtet" }),
       "@end",
     ];
   }

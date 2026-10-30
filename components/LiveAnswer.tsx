@@ -5,6 +5,8 @@ import Baustein from "./Bausteine";
 import { sanitizeSvgLine } from "@/lib/sanitize";
 import { prepare, play, stopSpeaking } from "@/lib/voice";
 import SceneFrame from "./SceneFrame";
+import JawStage, { type JawHandle } from "./JawStage";
+import type { Cmd } from "@/lib/jawLesson";
 import type { AnswerMeta, BausteinName } from "@/lib/types";
 
 /** Zeilen-Zufuhr einer Antwort. Lab schiebt jede fertige Zeile hinein, LiveAnswer arbeitet sie der Reihe nach ab. */
@@ -37,6 +39,9 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
   const [baustein, setBaustein] = useState<{ name: BausteinName; raw: string } | null>(null);
   const [drawing, setDrawing] = useState(true);
   const [scene, setScene] = useState<string | null>(null);
+  const [points, setPoints] = useState<string[]>([]);
+  const [pointNow, setPointNow] = useState(-1);
+  const jaw = useRef<JawHandle>(null);
   const alive = useRef(true);
 
   useEffect(() => {
@@ -129,6 +134,13 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
         } else if (line.startsWith("@svg ")) {
           const el = sanitizeSvgLine(line.slice(5).trim());
           if (el) await drawEl(el);
+        } else if (line.startsWith("@point ")) {
+          const t = line.slice(7).trim().slice(0, 140);
+          if (t) { setPoints((p) => [...p, t]); setPointNow((n) => n + 1); }
+        } else if (line.startsWith("@do ")) {
+          let c: Cmd | null = null;
+          try { const j = JSON.parse(line.slice(4)) as Cmd; if (j && typeof j.cmd === "string") c = j; } catch { /* unlesbar */ }
+          if (c) { for (let k = 0; k < 40 && !jaw.current && alive.current; k++) await wait(50); await jaw.current?.run(c); }
         } else if (line.startsWith("@threeblock ")) {
           try { setScene(JSON.parse(line.slice(12)) as string); } catch { /* unlesbar */ }
           await wait(400);
@@ -144,6 +156,7 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
       if (!alive.current) return;
       pen(0, 0, false);
       setCurrent(-1);
+      setPointNow(-2);
       setDrawing(false);
       onFinished();
     })();
@@ -156,6 +169,8 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
       <h4>{meta.title}</h4>
       {scene ? (
         <SceneFrame code={scene} onError={props.onSceneError} />
+      ) : meta.kind === "kiefer" ? (
+        <JawStage ref={jaw} />
       ) : meta.kind === "frei" ? (
         <div className="ik-sheet">
           <svg ref={svgRef} viewBox="0 0 420 300" role="img" aria-label={meta.title}>
@@ -176,10 +191,17 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
       ) : (
         <div className="ik-sheet wait"><span>IKnow zeichnet …</span></div>
       )}
-      <div className="ik-say">
-        {says.map((s, i) => <span key={i} className={i === current ? "now" : ""}>{s} </span>)}
-        {drawing && says.length === 0 && <span className="muted">IKnow fängt an …</span>}
-      </div>
+      {points.length > 0 ? (
+        <>
+          <ul className="ik-points">{points.map((p, i) => <li key={i} className={pointNow === -2 || i < pointNow ? "done" : i === pointNow ? "now" : ""}>{p}</li>)}</ul>
+          {says.length > 0 && <details className="ik-spoken"><summary>Gesprochener Text</summary><p>{says.join(" ")}</p></details>}
+        </>
+      ) : (
+        <div className="ik-say">
+          {says.map((s, i) => <span key={i} className={i === current ? "now" : ""}>{s} </span>)}
+          {drawing && says.length === 0 && <span className="muted">IKnow fängt an …</span>}
+        </div>
+      )}
       {!drawing && props.footer}
     </>
   );
