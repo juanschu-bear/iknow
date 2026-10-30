@@ -115,3 +115,10 @@
 .ik-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .ik-chips button{border:0;border-radius:99px;padding:5px 11px;font:inherit;font-size:12px;font-weight:650;background:var(--accent-soft);color:var(--accent);cursor:pointer}
 .ik-scene{width:100%;border:0;display:block;border-radius:16px;background:linear-gradient(180deg,#FCFDFC,#F3F6F5);box-shadow:inset 0 0 0 1px var(--line)}
+
+/* ===== Diktat ===== */
+.ik-mic{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:80;display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:99px;background:rgba(16,36,42,.94);color:#fff;font-size:14px;font-weight:650;box-shadow:0 20px 40px -18px rgba(0,0,0,.6)}
+.ik-mic i{width:12px;height:12px;border-radius:50%;background:#EA7A3C;box-shadow:0 0 0 0 rgba(234,122,60,.6);animation:ikmic 1.2s ease-out infinite}
+.ik-mic.busy i{background:#7FD3D9;animation:ikspin .8s linear infinite;border-radius:3px}
+@keyframes ikmic{0%{box-shadow:0 0 0 0 rgba(234,122,60,.55)}100%{box-shadow:0 0 0 14px rgba(234,122,60,0)}}
+.ik-hint.q{top:112px;background:rgba(255,255,255,.96);color:var(--fg);box-shadow:0 0 0 1px var(--line)}

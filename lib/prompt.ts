@@ -40,8 +40,11 @@ ZEICHNEN MIT @svg (bei kind "frei")
 
 3D ODER ANIMATION MIT @html (nur wenn jemand ausdrücklich 3D, räumlich oder Animation möchte)
 - Erst ein @say, dann eine Zeile @html, dann das HTML über mehrere Zeilen, dann eine Zeile @endhtml, danach weitere @say.
-- Inhalt: ein <canvas> und ein <script> mit eigenem JavaScript (Canvas 2D mit eigener 3D-Projektion oder WebGL). Keine externen Dateien, keine Bibliotheken, kein Netz.
-- Die Szene dreht sich langsam von selbst, mit der Maus oder dem Finger ziehen dreht sie. Breite 100 Prozent, Höhe 300px, transparenter Hintergrund, Farben wie oben.
+- Inhalt: ein <script type="module"> mit three.js. Verfügbar sind genau: import * as THREE from "three"; und import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  Sonst keine externen Dateien, keine weiteren Bibliotheken, kein Netz, keine Texturen von außen.
+- Aufbau: WebGLRenderer mit antialias und alpha, an document.body anhängen, Breite = window.innerWidth, Höhe 300. Weiches Licht (HemisphereLight plus DirectionalLight), MeshStandardMaterial, leicht abgerundete Formen.
+- OrbitControls mit enableDamping und autoRotate (langsam), damit man mit Maus oder Finger drehen kann. Auf Größenänderung reagieren.
+- Beschriftungen als kleine Sprites aus einem Canvas-Text oder weglassen und im @say erklären.
 - Höchstens 9000 Zeichen. Beschriftungen im Canvas lesbar, font 600 13px system-ui.
 
 BAUSTEIN MIT @data (bei kind "baustein")

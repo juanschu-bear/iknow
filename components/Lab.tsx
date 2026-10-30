@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import PracticeScreen, { PAGE_CONTEXT } from "./PracticeScreen";
 import LiveAnswer, { SketchFeed } from "./LiveAnswer";
 import { stopSpeaking } from "@/lib/voice";
+import { Dictation, transcribe } from "@/lib/dictation";
 import type { AnswerMeta, AskRequest, ContextItem, RenderPref, Source, StreamEvent, Tier, Usage } from "@/lib/types";
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -128,6 +129,11 @@ export default function Lab() {
   const [askPos, setAskPos] = useState<{ x: number; y: number } | null>(null);
   const [ansPos, setAnsPos] = useState<{ x: number; y: number } | null>(null);
   const runId = useRef(0);
+  const pendingQ = useRef<string | null>(null);
+  const dict = useRef<Dictation | null>(null);
+  const [listening, setListening] = useState<"off" | "rec" | "busy">("off");
+  const phaseRef = useRef<Phase>("idle");
+  const finishedRef = useRef(false);
   const feedRef = useRef<SketchFeed | null>(null);
   const onFinished = useCallback(() => setFinished(true), []);
 
@@ -151,6 +157,46 @@ export default function Lab() {
   }, [reset]);
 
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { finishedRef.current = finished; }, [finished]);
+
+  /* Leertaste halten = sprechen (wie bei Clicky). Nicht in Eingabefeldern. */
+  useEffect(() => {
+    const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat || typing(e.target)) return;
+      const ph = phaseRef.current;
+      if (ph === "thinking" || ph === "draw") return;
+      if (ph === "answer" && !finishedRef.current) return;
+      e.preventDefault();
+      stopSpeaking();
+      if (!dict.current) dict.current = new Dictation();
+      setListening("rec");
+      dict.current.start().catch(() => { setListening("off"); setError("Mikrofon wurde nicht erlaubt."); });
+    };
+    const up = async (e: KeyboardEvent) => {
+      if (e.code !== "Space" || !dict.current?.active) return;
+      e.preventDefault();
+      const audio = await dict.current.finish();
+      if (!audio) { setListening("off"); return; }
+      setListening("busy");
+      try {
+        const text = await transcribe(audio, readCode());
+        setListening("off");
+        if (!text) return;
+        const ph = phaseRef.current;
+        if (ph === "idle") { pendingQ.current = text; begin(); }
+        else if (ph === "ask") { setQuestion(text); send(undefined, undefined, { question: text }); }
+        else if (ph === "answer") send(undefined, text);
+      } catch (err) {
+        setListening("off");
+        if (err instanceof Error && /Zugangscode/.test(err.message)) setNeedCode(true);
+      }
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+  });
 
   /* Umrandung und Pfeil wandern mit, wenn darunter gescrollt wird */
   useEffect(() => {
@@ -225,9 +271,9 @@ export default function Lab() {
     setPhase("draw");
   }
 
-  function cropFromStill(sel: Rect, poly: Pt[]) {
+  function cropFromStill(sel: Rect, poly: Pt[]): { crop: string; full: string } | null {
     const img = stillImg.current, frame = frameRef.current;
-    if (!img || !frame) return;
+    if (!img || !frame) return null;
     const b = img.getBoundingClientRect();
     const scale = Math.min(b.width / frame.width, b.height / frame.height);
     const dw = frame.width * scale, dh = frame.height * scale;
@@ -252,7 +298,8 @@ export default function Lab() {
       g.beginPath(); local.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.closePath();
       g.strokeStyle = "#1A8C97"; g.lineWidth = Math.max(2, 3 * k); g.stroke();
     }
-    setCrop(c.toDataURL("image/jpeg", 0.92));
+    const cropUrl = c.toDataURL("image/jpeg", 0.92);
+    setCrop(cropUrl);
     const kf = Math.min(1, 1280 / frame.width);
     const f = document.createElement("canvas");
     f.width = Math.round(frame.width * kf); f.height = Math.round(frame.height * kf);
@@ -262,7 +309,9 @@ export default function Lab() {
       fg.beginPath(); poly.map(toF).forEach((p, i) => (i ? fg.lineTo(p.x * kf, p.y * kf) : fg.moveTo(p.x * kf, p.y * kf))); fg.closePath();
       fg.strokeStyle = "#1A8C97"; fg.lineWidth = 3; fg.stroke();
     }
-    setFull(f.toDataURL("image/jpeg", 0.75));
+    const fullUrl = f.toDataURL("image/jpeg", 0.75);
+    setFull(fullUrl);
+    return { crop: cropUrl, full: fullUrl };
   }
 
   /* ---------- Rahmen ziehen ---------- */
@@ -298,15 +347,19 @@ export default function Lab() {
     }
     anchorsRef.current = anchors;
     setShift({ x: 0, y: 0 });
+    const spoken = pendingQ.current;
+    pendingQ.current = null;
     if (source === "daten") {
       const found = collectItems(poly);
       setItems(found);
       const hl = found.map((i) => i.key).filter((k) => /^[BWN]-/.test(k));
       if (hl.length) viewer.current?.highlight(hl);
-      setQuestion("Was ist das hier, und was bedeutet es für Hoffmann, Lea?");
+      setQuestion(spoken ?? "Was ist das hier, und was bedeutet es für Hoffmann, Lea?");
+      if (spoken) { send(undefined, undefined, { question: spoken, items: found }); return; }
     } else {
-      cropFromStill(box, poly);
-      setQuestion("Was ist das hier, und was bedeutet es?");
+      const shot = cropFromStill(box, poly);
+      setQuestion(spoken ?? "Was ist das hier, und was bedeutet es?");
+      if (spoken && shot) { send(undefined, undefined, { question: spoken, crop: shot.crop, full: shot.full }); return; }
     }
     setPhase("ask");
   };
@@ -329,20 +382,21 @@ export default function Lab() {
     }
     return { x: Math.max(12, Math.min(vw - w - 12, x)), y };
   };
-  useLayoutEffect(() => { if (phase === "ask") { setAskPos(place(askRef.current, true)); setTimeout(() => qRef.current?.select(), 30); } }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { if (phase === "ask") { setAskPos(place(askRef.current, true)); } }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => { if (phase === "answer" && (meta || error)) setAnsPos(place(ansRef.current, false, meta ? (meta.kind === "frei" ? 620 : 500) : undefined)); }, [phase, meta, error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- Fragen ---------- */
-  async function send(code?: string, follow?: string) {
-    const q = (follow ?? question).trim();
+  async function send(code?: string, follow?: string, o?: { question?: string; items?: ContextItem[]; crop?: string; full?: string }) {
+    const q = (follow ?? o?.question ?? question).trim();
+    const useItems = o?.items ?? items, useCrop = o?.crop ?? crop ?? undefined, useFull = o?.full ?? full ?? undefined;
     if (!q) return;
     const hist = follow ? history.slice(-3) : [];
     if (!follow) setHistory([]);
     stopSpeaking(); feedRef.current?.end();
     setPhase("thinking"); setProgress(0); setError(null); setStill(null); setMeta(null); setFeed(null); setFinished(false);
     const body: AskRequest = source === "daten"
-      ? { source, tier, render, question: q, items, page: PAGE_CONTEXT, history: hist.length ? hist : undefined }
-      : { source, tier, render, question: q, crop: crop ?? undefined, full: full ?? undefined, history: hist.length ? hist : undefined };
+      ? { source, tier, render, question: q, items: useItems, page: PAGE_CONTEXT, history: hist.length ? hist : undefined }
+      : { source, tier, render, question: q, crop: useCrop, full: useFull, history: hist.length ? hist : undefined };
     try {
       const res = await fetch("/api/iknow", { method: "POST", headers: { "Content-Type": "application/json", "x-iknow-code": code ?? readCode() }, body: JSON.stringify(body) });
       if (res.status === 401) { setNeedCode(true); setPhase("ask"); return; }
@@ -458,11 +512,13 @@ export default function Lab() {
 
       <button className={"ik-fab" + (phase !== "idle" ? " on" : "")} type="button" onClick={() => (phase === "idle" ? begin() : reset())} aria-label="IKnow fragen: Bereich umrahmen">
         <i><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><circle cx="12" cy="12" r="2.5" /></svg></i>
-        <span>{phase === "idle" ? "IKnow fragen" : "Abbrechen"}<small>{source === "daten" ? "Bereich umrahmen" : "Foto, dann umrahmen"}</small></span>
+        <span>{phase === "idle" ? "IKnow fragen" : "Abbrechen"}<small>umranden · oder Leertaste halten</small></span>
       </button>
 
+      {listening !== "off" && <div className={"ik-mic " + listening}><i />{listening === "rec" ? "Ich höre zu … Leertaste loslassen" : "Verstehe …"}</div>}
       {phase === "draw" && (
         <>
+          {pendingQ.current && <div className="ik-hint q">„{pendingQ.current}“</div>}
           <div className="ik-hint">Mit Maus oder Finger <b>frei um das zeichnen</b>, was du wissen willst · Esc bricht ab</div>
           <div className={"ik-layer" + (still ? " still" : "")} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}>
             {still && <img ref={stillImg} src={still} alt="Aufgenommener Bildschirm" draggable={false} />}
@@ -494,7 +550,7 @@ export default function Lab() {
               <button className="go" type="button" onClick={() => send()}>Fragen</button>
             </div>
           )}
-          <div className="note">{source === "daten" ? "IKnow liest nur die Einträge im Rahmen und die Seite drumherum" : "IKnow sieht den Ausschnitt und den Bildschirm verkleinert zur Orientierung"}</div>
+          <div className="note">Leertaste halten und sprechen, oder tippen · {source === "daten" ? "IKnow liest nur die Einträge im Rahmen" : "IKnow sieht den Ausschnitt"}</div>
         </div>
       )}
 
@@ -513,7 +569,7 @@ export default function Lab() {
               <LiveAnswer meta={meta} feed={feed} voice={voice} onFinished={onFinished} footer={
                 finished ? <>
                 <div className="ik-follow">
-                  <input value={followUp} onChange={(e) => setFollowUp(e.target.value)} placeholder="Weiter fragen, z. B. „Zeig das als 3D“" onKeyDown={(e) => { if (e.key === "Enter" && followUp.trim()) { const f2 = followUp; setFollowUp(""); send(undefined, f2); } }} aria-label="Folgefrage" />
+                  <input value={followUp} onChange={(e) => setFollowUp(e.target.value)} placeholder="Weiter fragen oder Leertaste halten …" onKeyDown={(e) => { if (e.key === "Enter" && followUp.trim()) { const f2 = followUp; setFollowUp(""); send(undefined, f2); } }} aria-label="Folgefrage" />
                   <button type="button" disabled={!followUp.trim()} onClick={() => { const f2 = followUp; setFollowUp(""); send(undefined, f2); }}>Weiter</button>
                 </div>
                 <div className="ik-chips">{["Zeig das als 3D", "Einfacher erklären", "Genauer, mit Zahlen"].map((c) => <button key={c} type="button" onClick={() => send(undefined, c)}>{c}</button>)}</div>
