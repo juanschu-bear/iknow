@@ -13,6 +13,8 @@ function accessOk(req: Request): boolean {
   return req.headers.get("x-iknow-code") === code;
 }
 
+const num = (v: string | undefined, d: number) => { const n = v === undefined ? NaN : Number(v); return Number.isFinite(n) ? n : d; };
+
 export async function POST(req: Request): Promise<Response> {
   if (!accessOk(req)) return Response.json({ error: "Zugangscode fehlt oder ist falsch." }, { status: 401 });
   const key = process.env.ELEVENLABS_API_KEY;
@@ -34,7 +36,19 @@ export async function POST(req: Request): Promise<Response> {
     method: "POST",
     headers: { "Content-Type": "application/json", "xi-api-key": key, Accept: "audio/mpeg" },
     // language_code nur bei Modellen, die Sprachvorgabe unterstützen (Flash v2.5, Turbo v2.5)
-    body: JSON.stringify(/_v2_5$/.test(model) ? { text, model_id: model, language_code: "de" } : { text, model_id: model }),
+    body: JSON.stringify({
+      text,
+      model_id: model,
+      ...(/_v2_5$/.test(model) ? { language_code: "de" } : {}),
+      // Lebendiger sprechen: weniger Stabilität, mehr Stil (offizielle voice_settings von ElevenLabs).
+      voice_settings: {
+        stability: num(process.env.ELEVENLABS_STABILITY, 0.3),
+        similarity_boost: num(process.env.ELEVENLABS_SIMILARITY, 0.8),
+        style: num(process.env.ELEVENLABS_STYLE, 0.55),
+        use_speaker_boost: true,
+        speed: num(process.env.ELEVENLABS_SPEED, 1.05),
+      },
+    }),
   });
   if (!r.ok || !r.body) {
     console.error("[iknow-tts] ElevenLabs status", r.status);

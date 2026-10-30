@@ -136,6 +136,7 @@ export default function Lab() {
   const finishedRef = useRef(false);
   const feedRef = useRef<SketchFeed | null>(null);
   const onFinished = useCallback(() => setFinished(true), []);
+  const sceneRetry = useRef(false);
 
   const onViewer = useCallback((v: Viewer | null) => { viewer.current = v; }, []);
 
@@ -364,6 +365,15 @@ export default function Lab() {
     setPhase("ask");
   };
 
+  /** Neu umranden: Auswahl verwerfen, Bildschirmfoto behalten, wieder zeichnen. */
+  const redraw = () => {
+    stopSpeaking(); feedRef.current?.end();
+    setPts([]); setRect(null); setItems([]); setMeta(null); setFeed(null); setFinished(false); setError(null);
+    setAskPos(null); setAnsPos(null); clearFocus();
+    if (source === "screenshot" && crop && frameRef.current) setStill(frameRef.current.toDataURL("image/jpeg", 0.9));
+    setPhase("draw");
+  };
+
   /* ---------- Fenster neben dem Rahmen platzieren ---------- */
   const place = (el: HTMLElement | null, below: boolean, estH?: number) => {
     if (!el || !rect) return null;
@@ -391,7 +401,7 @@ export default function Lab() {
     const useItems = o?.items ?? items, useCrop = o?.crop ?? crop ?? undefined, useFull = o?.full ?? full ?? undefined;
     if (!q) return;
     const hist = follow ? history.slice(-3) : [];
-    if (!follow) setHistory([]);
+    if (!follow) { setHistory([]); sceneRetry.current = false; }
     stopSpeaking(); feedRef.current?.end();
     setPhase("thinking"); setProgress(0); setError(null); setStill(null); setMeta(null); setFeed(null); setFinished(false);
     const body: AskRequest = source === "daten"
@@ -411,15 +421,15 @@ export default function Lab() {
       let buf = "", text = "", gotMeta = false, rawAll = "", html: string[] | null = null;
       const handleLine = (raw: string) => {
         rawAll += raw + "\n";
-        // 3D-Block: Zeilen zwischen @html und @endhtml sammeln und als Ganzes weitergeben
+        // 3D-Block: Zeilen zwischen @three und @endthree sammeln und als Ganzes weitergeben
         if (html) {
-          if (raw.trim() === "@endhtml") { f.push("@htmlblock " + JSON.stringify(html.join("\n"))); html = null; }
+          if (raw.trim() === "@endthree") { f.push("@threeblock " + JSON.stringify(html.join("\n"))); html = null; }
           else if (html.join("\n").length < 20000) html.push(raw);
           return;
         }
         const line = raw.trim();
         if (!line) return;
-        if (line === "@html") { html = []; return; }
+        if (line === "@three") { html = []; return; }
         if (line.startsWith("@meta")) {
           if (gotMeta) return;
           let m: AnswerMeta = { kind: render === "baustein" ? "baustein" : "frei", title: "IKnow erklärt", focus: [] };
@@ -550,6 +560,7 @@ export default function Lab() {
               <button className="go" type="button" onClick={() => send()}>Fragen</button>
             </div>
           )}
+          <div className="ik-ask-actions"><button type="button" onClick={redraw}>↺ Neu umranden</button><button type="button" onClick={reset}>Abbrechen</button></div>
           <div className="note">Leertaste halten und sprechen, oder tippen · {source === "daten" ? "IKnow liest nur die Einträge im Rahmen" : "IKnow sieht den Ausschnitt"}</div>
         </div>
       )}
@@ -564,9 +575,13 @@ export default function Lab() {
         <>
           <svg className="ik-arrow" aria-hidden="true">{arrow}</svg>
           <div className="ik-ans" ref={ansRef} style={ansPos ? { left: ansPos.x, top: ansPos.y, maxHeight: innerHeight - ansPos.y - 12 } : { visibility: "hidden", left: 0, top: 0 }} role="dialog" aria-live="polite">
-            <div className="top"><span className="lbl">IKnow zeigt{meta ? (meta.kind === "frei" ? " · zeichnet frei" : " · Baustein") : ""}</span><button className="x" type="button" onClick={reset} aria-label="Schließen">✕</button></div>
+            <div className="top"><span className="lbl">IKnow zeigt{meta ? (meta.kind === "frei" ? " · zeichnet frei" : " · Baustein") : ""}</span><span className="top-act"><button className="redo" type="button" onClick={redraw}>↺ Neu umranden</button><button className="x" type="button" onClick={reset} aria-label="Schließen">✕</button></span></div>
             {error ? <p className="ik-warn">{error}</p> : meta && feed && (
-              <LiveAnswer meta={meta} feed={feed} voice={voice} onFinished={onFinished} footer={
+              <LiveAnswer meta={meta} feed={feed} voice={voice} onFinished={onFinished} onSceneError={(msg) => {
+                if (sceneRetry.current) return;
+                sceneRetry.current = true;
+                send(undefined, `Die 3D-Szene ist mit diesem Fehler abgebrochen: ${msg}. Baue sie korrigiert neu, nur mit den erlaubten Hilfen.`);
+              }} footer={
                 finished ? <>
                 <div className="ik-follow">
                   <input value={followUp} onChange={(e) => setFollowUp(e.target.value)} placeholder="Weiter fragen oder Leertaste halten …" onKeyDown={(e) => { if (e.key === "Enter" && followUp.trim()) { const f2 = followUp; setFollowUp(""); send(undefined, f2); } }} aria-label="Folgefrage" />

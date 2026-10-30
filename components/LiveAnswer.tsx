@@ -27,7 +27,7 @@ const ease = (t: number) => 1 - Math.pow(1 - t, 3);
 const frame = () => new Promise<number>((r) => requestAnimationFrame(r));
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; voice: boolean; footer: React.ReactNode; onFinished: () => void }) {
+export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; voice: boolean; footer: React.ReactNode; onFinished: () => void; onSceneError?: (msg: string) => void }) {
   const { meta, feed, voice, onFinished } = props;
   const svgRef = useRef<SVGSVGElement>(null);
   const layerRef = useRef<SVGGElement>(null);
@@ -129,8 +129,8 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
         } else if (line.startsWith("@svg ")) {
           const el = sanitizeSvgLine(line.slice(5).trim());
           if (el) await drawEl(el);
-        } else if (line.startsWith("@htmlblock ")) {
-          try { setScene(JSON.parse(line.slice(11)) as string); } catch { /* unlesbar */ }
+        } else if (line.startsWith("@threeblock ")) {
+          try { setScene(JSON.parse(line.slice(12)) as string); } catch { /* unlesbar */ }
           await wait(400);
         } else if (line.startsWith("@data ")) {
           try {
@@ -155,7 +155,7 @@ export default function LiveAnswer(props: { meta: AnswerMeta; feed: SketchFeed; 
     <>
       <h4>{meta.title}</h4>
       {scene ? (
-        <SceneFrame html={scene} />
+        <SceneFrame code={scene} onError={props.onSceneError} />
       ) : meta.kind === "frei" ? (
         <div className="ik-sheet">
           <svg ref={svgRef} viewBox="0 0 420 300" role="img" aria-label={meta.title}>

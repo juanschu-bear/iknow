@@ -122,3 +122,9 @@
 .ik-mic.busy i{background:#7FD3D9;animation:ikspin .8s linear infinite;border-radius:3px}
 @keyframes ikmic{0%{box-shadow:0 0 0 0 rgba(234,122,60,.55)}100%{box-shadow:0 0 0 14px rgba(234,122,60,0)}}
 .ik-hint.q{top:112px;background:rgba(255,255,255,.96);color:var(--fg);box-shadow:0 0 0 1px var(--line)}
+
+/* ===== Neu umranden ===== */
+.ik-ask-actions{display:flex;gap:6px;padding:8px 2px 0}
+.ik-ask-actions button{border:0;border-radius:10px;padding:6px 11px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.1);color:#fff}
+.ik-ans .top-act{display:flex;gap:6px;align-items:center}
+.ik-ans .redo{border:0;border-radius:9px;height:28px;padding:0 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;background:var(--accent-soft);color:var(--accent)}
