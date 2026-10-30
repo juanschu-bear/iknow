@@ -27,6 +27,8 @@ export interface AskRequest {
   /** Daten-Modus: Einträge im Rahmen und die Seite drumherum */
   items?: ContextItem[];
   page?: Record<string, unknown>;
+  /** Daten-Modus: sichtbarer Text innerhalb der Umrandung (Leitstand) */
+  text?: string;
   /** Screenshot-Modus: Ausschnitt und Gesamtbild als data:image/jpeg;base64,... */
   crop?: string;
   full?: string;

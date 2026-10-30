@@ -15,7 +15,7 @@ const PW_KEY = "iknow-edit";
 const readPw = () => { try { return sessionStorage.getItem(PW_KEY) ?? ""; } catch { return ""; } };
 const savePw = (v: string) => { try { if (v) sessionStorage.setItem(PW_KEY, v); else sessionStorage.removeItem(PW_KEY); } catch { /* ohne Speicher */ } };
 const fmt = (n: number) => n.toLocaleString("de-DE");
-/** grob: 1 Token je 3,5 Zeichen, Eingabepreis je 1 Mio. Tokens in USD (Ultrafast 12, Standard 2 bzw. 0,10 aus dem Zwischenspeicher) */
+/** grob: 1 Token je 3,5 Zeichen, Eingabepreis je 1 Mio. Tokens in USD (Ultrafast 12, Standard 2) */
 const cents = (chars: number, usdPerM: number) => (chars / 3.5) * usdPerM / 1e6 * 100;
 
 export default function WissenPanel({ headers, onClose }: { headers: Record<string, string>; onClose: () => void }) {
@@ -103,7 +103,6 @@ export default function WissenPanel({ headers, onClose }: { headers: Record<stri
   }
 
   const used = data ? data.uploads.reduce((s, d) => s + d.chars, 0) : 0;
-  const fixed = data ? data.fest.reduce((s, d) => s + d.chars, 0) : 0;
   const tooLong = !!data && text.length > data.limits.doc;
   const overTotal = !!data && used + text.length > data.limits.total;
 
@@ -134,7 +133,7 @@ export default function WissenPanel({ headers, onClose }: { headers: Record<stri
               {data.storeReady && (
                 <div className="kmeter">
                   <div className="bar"><i style={{ width: `${Math.min(100, (used / data.limits.total) * 100)}%` }} /></div>
-                  <small>{fmt(used)} von {fmt(data.limits.total)} Zeichen belegt. Alles Wissen geht bei jeder Frage mit: ca. {cents(used + fixed, 12).toFixed(1)} Cent pro Frage in Ultrafast, ca. {cents(used + fixed, 0.1).toFixed(2)} bis {cents(used + fixed, 2).toFixed(1)} Cent in Standard.</small>
+                  <small>{fmt(used)} von {fmt(data.limits.total)} Zeichen belegt. Pro Frage sucht IKnow nur die 5 passendsten Abschnitte heraus (höchstens ca. 3.500 Zeichen), egal wie viel hier steht: ca. {cents(3500, 12).toFixed(1)} Cent in Ultrafast, ca. {cents(3500, 2).toFixed(2)} Cent in Standard.</small>
                 </div>
               )}
             </section>

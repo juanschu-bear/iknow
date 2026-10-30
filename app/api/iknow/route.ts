@@ -2,7 +2,9 @@ import OpenAI, { type DataResidency } from "openai";
 import { SYSTEM_PROMPT, buildUserContent } from "@/lib/prompt";
 import { estimateCost } from "@/lib/pricing";
 import { mockLines } from "@/lib/mock";
-import { uploads, uploadsText } from "@/lib/wissen-store";
+import { uploadChunks, uploads } from "@/lib/wissen-store";
+import { relevantText } from "@/lib/retrieval";
+import { wissenText } from "@/lib/wissen";
 import type { AskRequest, StreamEvent, Tier, Usage } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -90,23 +92,31 @@ export async function POST(req: Request): Promise<Response> {
           return;
         }
 
-        // Hochgeladenes Praxiswissen hinten an die festen Anweisungen, damit der Anfang gleich bleibt (Zwischenspeicher).
-        let extra = "";
-        try { extra = uploadsText(await uploads()); } catch (e) { console.error("[iknow] wissen:", e instanceof Error ? e.message : "unbekannt"); }
         const client = new OpenAI({ dataResidency: residency(), maxRetries: 1, timeout: 55_000 });
+        // Nur die passendsten Wissensstellen mitschicken. Fällt die Suche aus, geht die feste Wissensbasis komplett mit.
+        let wissen = "";
+        try {
+          const query = [ask.history?.at(-1)?.question, ask.question, ...(ask.items ?? []).map((it) => it.label), (ask.text ?? "").slice(0, 600)].filter(Boolean).join("\n");
+          let extra: Awaited<ReturnType<typeof uploads>> = [];
+          try { extra = await uploads(); } catch (e) { console.error("[iknow] wissen:", e instanceof Error ? e.message : "unbekannt"); }
+          wissen = (await relevantText(client, query, uploadChunks(extra))).text;
+        } catch (e) {
+          console.error("[iknow] wissenssuche:", e instanceof Error ? e.message : "unbekannt");
+          wissen = wissenText();
+        }
         const response = await client.responses.create({
           model: MODEL,
           service_tier: tier === "ultrafast" ? "ultrafast" : "default",
           store: false,
           stream: true,
-          instructions: SYSTEM_PROMPT + extra,
-          prompt_cache_key: "iknow-wissen",
+          instructions: SYSTEM_PROMPT,
+          prompt_cache_key: "iknow",
           input: [
             ...(ask.history ?? []).flatMap((h) => [
               { role: "user" as const, content: h.question },
               { role: "assistant" as const, content: h.answer },
             ]),
-            { role: "user" as const, content: buildUserContent(ask) },
+            { role: "user" as const, content: buildUserContent(ask, wissen) },
           ],
         });
 

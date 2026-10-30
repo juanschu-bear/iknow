@@ -1,16 +1,19 @@
 import { timingSafeEqual } from "node:crypto";
 import { del, get, list, put } from "@vercel/blob";
+import type OpenAI from "openai";
+import { chunksFor, type Chunk } from "./retrieval";
 
 /**
  * Hochgeladenes Praxiswissen (Zahnrad in IKnow). Liegt als private JSON-Dateien in einem eigenen
  * Vercel-Blob-Speicher (BLOB_READ_WRITE_TOKEN), getrennt von allen Praxisdaten.
- * Bearbeiten nur mit IKNOW_EDIT_PASSWORD. Der Text geht bei jeder Frage komplett mit (Obergrenze unten).
+ * Bearbeiten nur mit IKNOW_EDIT_PASSWORD. Beim Hochladen werden Abschnitte für die Wissenssuche beschrieben;
+ * pro Frage gehen nur die passendsten Abschnitte mit.
  */
 export const PREFIX = "iknow-wissen/";
 export const MAX_DOC_CHARS = 120_000;
-export const MAX_TOTAL_CHARS = 200_000;
+export const MAX_TOTAL_CHARS = 2_000_000;
 
-export interface Upload { pathname: string; titel: string; text: string; chars: number; hochgeladen: string }
+export interface Upload { pathname: string; titel: string; chars: number; hochgeladen: string; chunks: Chunk[] }
 
 export const storeReady = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 export const editReady = () => !!process.env.IKNOW_EDIT_PASSWORD;
@@ -40,9 +43,10 @@ export async function uploads(fresh = false): Promise<Upload[]> {
     const r = await get(b.pathname, { access: "private", useCache: false });
     if (!r) continue;
     try {
-      const j = JSON.parse(await new Response(r.stream).text()) as Partial<Upload>;
+      const j = JSON.parse(await new Response(r.stream).text()) as { titel?: unknown; text?: unknown; hochgeladen?: unknown; chunks?: unknown };
       if (typeof j.text !== "string" || typeof j.titel !== "string") continue;
-      docs.push({ pathname: b.pathname, titel: j.titel, text: j.text, chars: j.text.length, hochgeladen: String(j.hochgeladen ?? "") });
+      const chunks = Array.isArray(j.chunks) ? (j.chunks as Chunk[]).filter((c) => c && typeof c.t === "string" && Array.isArray(c.v)) : [];
+      docs.push({ pathname: b.pathname, titel: j.titel, chars: j.text.length, hochgeladen: String(j.hochgeladen ?? ""), chunks });
     } catch { /* unlesbar überspringen */ }
   }
   docs.sort((x, y) => x.hochgeladen.localeCompare(y.hochgeladen) || x.pathname.localeCompare(y.pathname));
@@ -50,13 +54,14 @@ export async function uploads(fresh = false): Promise<Upload[]> {
   return docs;
 }
 
-export async function addUpload(titel: string, text: string): Promise<string | null> {
+export async function addUpload(client: OpenAI, titel: string, text: string): Promise<string | null> {
   const docs = await uploads(true);
   const total = docs.reduce((s, d) => s + d.chars, 0);
   if (total + text.length > MAX_TOTAL_CHARS) return `Zu viel Wissen insgesamt: ${total + text.length} von höchstens ${MAX_TOTAL_CHARS} Zeichen. Bitte ein älteres Dokument löschen oder kürzen.`;
   const slug = titel.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "dokument";
   const hochgeladen = new Date().toISOString();
-  await put(`${PREFIX}${hochgeladen.slice(0, 10)}-${slug}.json`, JSON.stringify({ titel, text, hochgeladen }), {
+  const chunks = await chunksFor(client, titel, text);
+  await put(`${PREFIX}${hochgeladen.slice(0, 10)}-${slug}.json`, JSON.stringify({ titel, text, hochgeladen, chunks }), {
     access: "private", addRandomSuffix: true, contentType: "application/json",
   });
   cache = null;
@@ -68,9 +73,5 @@ export async function removeUpload(pathname: string): Promise<void> {
   cache = null;
 }
 
-/** Teil für den System-Prompt. */
-export function uploadsText(docs: Upload[]): string {
-  if (!docs.length) return "";
-  return "\n\nHOCHGELADENES WISSEN DER PRAXIS (vom Praxisteam ergänzt, gilt wie die Wissensbasis)\n" +
-    docs.map((d, i) => `DOKUMENT ${i + 1}: ${d.titel} (hochgeladen ${d.hochgeladen.slice(0, 10)})\n${d.text}`).join("\n\n");
-}
+/** Alle Abschnitte des hochgeladenen Wissens für die Suche. */
+export const uploadChunks = (docs: Upload[]): Chunk[] => docs.flatMap((d) => d.chunks);

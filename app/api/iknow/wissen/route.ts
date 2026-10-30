@@ -1,3 +1,4 @@
+import OpenAI, { type DataResidency } from "openai";
 import { WISSEN } from "@/lib/wissen";
 import { MAX_DOC_CHARS, MAX_TOTAL_CHARS, PREFIX, addUpload, editReady, passwordOk, removeUpload, storeReady, uploads } from "@/lib/wissen-store";
 
@@ -66,7 +67,9 @@ export async function POST(req: Request): Promise<Response> {
   if (!titel || !text) return Response.json({ error: "Titel und Text werden gebraucht." }, { status: 400, headers: noStore });
   if (text.length > MAX_DOC_CHARS) return Response.json({ error: `Dokument ist zu lang (${text.length} Zeichen, höchstens ${MAX_DOC_CHARS}).` }, { status: 400, headers: noStore });
   try {
-    const err = await addUpload(titel, text);
+    const r = process.env.IKNOW_DATA_RESIDENCY;
+    const client = new OpenAI({ dataResidency: (r === "eu" || r === "us" || r === "global" ? r : undefined) as DataResidency | undefined, maxRetries: 1, timeout: 25_000 });
+    const err = await addUpload(client, titel, text);
     if (err) return Response.json({ error: err }, { status: 400, headers: noStore });
     return Response.json({ ok: true }, { headers: noStore });
   } catch (e) {

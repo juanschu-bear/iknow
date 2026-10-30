@@ -1,5 +1,4 @@
 import type { AskRequest } from "./types";
-import { wissenText } from "./wissen";
 
 /**
  * Zeilenprotokoll statt eines JSON-Blocks am Ende: Jede Zeile wird sofort verarbeitet,
@@ -59,8 +58,8 @@ Statt @svg-Zeilen genau eine @data-Zeile direkt nach dem ersten @say. Bausteine 
 - steps: {"items":[{"title":"Schritt","text":"kurz"}]}
 - cards: {"items":[{"value":"7 von 12","label":"Behandlungsquartal","tone":"teal|orange|ink"}]}
 
-WISSENSBASIS (geprüft, darauf stützt du dich zuerst; bei Widerspruch gilt das hochgeladene Praxiswissen weiter unten nur, wenn es neuer ist)
-${wissenText()}`;
+WISSENSBASIS
+Zu jeder Frage bekommst du unter "Passendes Wissen" die Stellen aus der geprüften Wissensbasis der Praxis und aus dem vom Praxisteam ergänzten Wissen, die am besten passen (Quelle in eckigen Klammern). Stütze dich zuerst darauf, vor allem bei Ziffern, Punkten, Grenzen und Praxisregeln. Fehlt dort etwas, erklär das Allgemeine aus deinem Fachwissen und sag bei praxisspezifischen Dingen ehrlich, dass es in der Wissensbasis nicht steht.`;
 
 function renderRule(pref: AskRequest["render"]): string {
   if (pref === "baustein") return "Vorgabe: kind MUSS \"baustein\" sein.";
@@ -74,9 +73,10 @@ type ContentPart =
 
 export const FOLLOWUP_NOTE = "Das ist eine Folgefrage zum selben umrandeten Bereich. Beziehe dich auf deine vorige Antwort und setze den Wunsch um (z. B. als 3D, genauer, einfacher).";
 
-export function buildUserContent(req: AskRequest): ContentPart[] {
+export function buildUserContent(req: AskRequest, wissen = ""): ContentPart[] {
   const parts: ContentPart[] = [];
   const head = [`Frage: ${req.question.trim()}`, renderRule(req.render)];
+  head.push(wissen ? `Passendes Wissen:\n${wissen}` : "Passendes Wissen: keine passende Stelle gefunden.");
   if (req.history?.length) head.push(FOLLOWUP_NOTE);
   if (req.source === "daten") {
     head.push(
