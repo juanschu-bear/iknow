@@ -342,7 +342,7 @@ const MT = [ /* per side from the midline: width, depth, crown height, top scale
   {w: .2, d: .13, h: .34, top: [.86, .28]}, {w: .16, d: .12, h: .3, top: [.82, .3]}, {w: .185, d: .165, h: .36, top: [.3, .36]},
   {w: .17, d: .185, h: .27, top: [.62, .6]}, {w: .165, d: .185, h: .26, top: [.62, .6]}, {w: .24, d: .235, h: .235, top: [.72, .72]}, {w: .225, d: .22, h: .22, top: [.72, .72]}
 ];
-const MGAP = .016, BASE_H = .2, HMAX = .36, SEG = 14;
+const MGAP = .016, BASE_H = .2, HMAX = .36, SEG = 18;
 const curveM = s => [1.05 * s, 0, -0.7 + 1.35 * s * s];
 const dCurveM = s => [1.05, 0, 2.7 * s];
 const ARCM = (function(){ const n = 800, L = [0]; let prev = curveM(0); for (let k = 1; k <= n; k++) { const p = curveM(k / n); L.push(L[k - 1] + Math.hypot(p[0] - prev[0], p[2] - prev[2])); prev = p; } return {n, L}; })();
@@ -353,6 +353,18 @@ function sAtLen(len){
 }
 const SIGNAL = [229, 81, 43], TEAL = [18, 128, 134];
 const PL_TOOTH = [251, 249, 245], PL_BASE = [244, 241, 235], PL_BASE_LOW = [233, 229, 221];
+/* IKnow: Zahnfleisch und Zahnschmelz statt Gips */
+const GUM = [224, 150, 144], GUM_DARK = [200, 122, 118], GUM_LIGHT = [238, 182, 176];
+const ENAMEL = [[244, 233, 214], [250, 246, 236], [252, 251, 247], [250, 252, 253]]; /* Zahnhals bis Schneide */
+const enamelAt = y => { const k = clamp(y, 0, 1) * (ENAMEL.length - 1), i = Math.floor(k), f = k - i; return i >= ENAMEL.length - 1 ? ENAMEL[ENAMEL.length - 1] : mixC(ENAMEL[i], ENAMEL[i + 1], f); };
+/* Kronenprofile je Zahntyp: Höhe (Anteil), Breite entlang des Bogens, Tiefe, Verschiebung nach innen */
+const PROFILES = {
+  incisor: [[0, .8, .72, 0], [.12, .93, .9, 0], [.4, 1, .98, 0], [.7, 1.03, .82, .03], [.9, 1.02, .55, .06], [1, 1, .3, .08]],
+  canine:  [[0, .82, .82, 0], [.12, .95, .96, 0], [.45, 1, 1, 0], [.75, .95, .9, .01], [.92, .72, .7, .02], [1, .38, .36, .03]],
+  premolar:[[0, .84, .84, 0], [.12, .96, .97, 0], [.45, 1, 1, 0], [.8, .98, .98, 0], [.94, .86, .9, 0], [1, .7, .78, 0]],
+  molar:   [[0, .86, .86, 0], [.12, .97, .97, 0], [.45, 1, 1, 0], [.8, .99, .99, 0], [.94, .9, .92, 0], [1, .78, .82, 0]],
+};
+const typeOf = i => i <= 1 ? 'incisor' : i === 2 ? 'canine' : i <= 4 ? 'premolar' : 'molar';
 const STEEL_C = [182, 192, 198];
 const AMBER = [176, 118, 14];
 const STATE_TINT = {abgerechnet: null, bestaetigt: TEAL, reserviert: TEAL, offen: SIGNAL, erfasst: null, nachgetragen: null};
@@ -405,18 +417,18 @@ function buildModel(data){
     }
     const bc = [0, -j * BASE_H / 2, 0.05];
     // Documentary annotation: tint the jaw base, never deform or invent teeth.
-    const baseColor = J.annotation ? mixC(PL_BASE, TEAL, .22) : PL_BASE;
+    const baseColor = J.annotation ? mixC(GUM, TEAL, .25) : GUM;
     const fb = {kind: 'base', fade};
     for (let k = 0; k < NB; k++) {
       const A = rows[k], B = rows[k + 1];
       const top = [A.ot, B.ot, B.it, A.it]; face(top, outward(top, [0, j, 0], [0, -j, 0]), baseColor, fb);
-      const o1 = [A.ot, A.om, B.om, B.ot]; face(o1, outward(o1, polyN(o1), bc), PL_BASE, fb);
+      const o1 = [A.ot, A.om, B.om, B.ot]; face(o1, outward(o1, polyN(o1), bc), GUM_DARK, Object.assign({spec: .12}, fb));
       const o2 = [A.om, A.ob, B.ob, B.om]; face(o2, outward(o2, polyN(o2), bc), PL_BASE_LOW, fb);
-      const iw = [A.it, B.it, B.ib, A.ib]; face(iw, mul(outward(iw, polyN(iw), bc), -1), PL_BASE_LOW, fb);
+      const iw = [A.it, B.it, B.ib, A.ib]; face(iw, mul(outward(iw, polyN(iw), bc), -1), GUM_LIGHT, fb);
     }
     [rows[0], rows[NB]].forEach((R, e) => { const cap = [R.ot, R.it, R.ib, R.ob]; const d = norm(dCurveM(e ? sEnd : -sEnd)); face(cap, e ? d : mul(d, -1), PL_BASE, fb); });
     /* the upper model is closed over the palate; the lower one stays open for the tongue */
-    if (jaw === 'OK') face(rows.map(R => R.ob), [0, -j, 0], PL_BASE, fb);
+    if (jaw === 'OK') face(rows.map(R => R.ob), [0, -j, 0], GUM_LIGHT, fb);
     const cardS = sEnd * .62, cf = fr(cardS);
     anchors[jaw + ':card'] = {jaw, p: add([cf.p[0], -j * BASE_H * .45, cf.p[2]], mul(cf.N, .16))};
     if (J.annotation) { const f0 = fr(0); anchors[jaw + ':annotation'] = {jaw, annotation: J.annotation, p: add([f0.p[0], -j * BASE_H * .5, f0.p[2]], mul(f0.N, .14))}; }
@@ -439,14 +451,26 @@ function buildModel(data){
         const tilt = P0 ? (P0.tilt || 0) : 0, dyP = P0 ? (P0.dy || 0) : 0;
         const TOOTH_C = marks[fdi] ? mixC(PL_TOOTH, marks[fdi] === 'orange' ? [234, 122, 60] : TEAL, .5) : PL_TOOTH;
         const grp = (jaw === 'OK' ? 100 : 200) + i * 2 + (side > 0 ? 1 : 0);
-        const ring = (y, k1, k2, g2) => { const out = []; for (let m = 0; m < SEG; m++) { const th = m / SEG * Math.PI * 2; const c = Math.cos(th), sn = Math.sin(th);
-          const cx = Math.sign(c) * Math.pow(Math.abs(c), .7), cz = Math.sign(sn) * Math.pow(Math.abs(sn), .7);
-          const p = add(add(add(f.p, mul(f.T, cx * t.w / 2 * k1)), mul(f.N, cz * t.d / 2 * k2)), mul(f.N, tilt * y)); out.push(vtx([p[0], j * y + dyP, p[2]], jaw, g2 == null ? grp : g2)); } return out; };
-        const Rs = [ring(0, .88, .88), ring(t.h * .3, .98, .98), ring(t.h * .62, 1, 1), ring(t.h * .88, .93, .9), ring(t.h, t.top[0], t.top[1])];
+        const ring = (y, k1, k2, g2, o) => { o = o || {}; const out = []; for (let m = 0; m < SEG; m++) { const th = m / SEG * Math.PI * 2; const c = Math.cos(th), sn = Math.sin(th);
+          const cx = Math.sign(c) * Math.pow(Math.abs(c), .72), cz = Math.sign(sn) * Math.pow(Math.abs(sn), .72);
+          const yy = y + (o.yFn ? o.yFn(th) : 0), shift = (o.shift || 0) * t.d;
+          const p = add(add(add(f.p, mul(f.T, cx * t.w / 2 * k1)), mul(f.N, cz * t.d / 2 * k2 - shift)), mul(f.N, tilt * yy)); out.push(vtx([p[0], j * yy + dyP, p[2]], jaw, g2 == null ? grp : g2)); } return out; };
+        const type = typeOf(i), prof = PROFILES[type];
         const tc = [f.p[0], j * t.h * .5, f.p[2]];
-        for (let r = 0; r < Rs.length - 1; r++) { const A = Rs[r], B = Rs[r + 1];
-          for (let m = 0; m < SEG; m++) { const q = [A[m], A[(m + 1) % SEG], B[(m + 1) % SEG], B[m]]; face(q, outward(q, polyN(q), tc), TOOTH_C, {kind: 'tooth', spec: .16, amb: .7, fade, fdi, unk}); } }
-        face(Rs[4].slice(), [0, j, 0], TOOTH_C, {kind: 'tooth', spec: .16, amb: .72, fade, fdi, unk});
+        /* Kauflächen: Höcker als Höhenwelle auf dem obersten Ring, Schneidezähne flach, Eckzahn spitz */
+        const cusp = type === 'molar' ? th => -.045 * t.h * (1 - Math.pow(Math.cos(2 * th), 2)) : type === 'premolar' ? th => -.05 * t.h * (1 - Math.pow(Math.sin(th), 2)) : null;
+        const Rs = prof.map(([hy, k1, k2, sh], r) => ring(t.h * hy, k1, k2, undefined, {shift: sh, yFn: r === prof.length - 1 ? cusp : null}));
+        const col = (y) => marks[fdi] ? mixC(enamelAt(y), marks[fdi] === 'orange' ? [234, 122, 60] : TEAL, .45) : enamelAt(y);
+        /* Zahnfleischsaum: kleiner Kragen um den Zahnhals */
+        const G0 = ring(-.004, 1.18, 1.2, grp + 1000), G1 = ring(t.h * .06, .9, .84, grp + 1000);
+        for (let m = 0; m < SEG; m++) { const q = [G0[m], G0[(m + 1) % SEG], G1[(m + 1) % SEG], G1[m]]; face(q, outward(q, polyN(q), tc), GUM, {kind: 'gum', spec: .1, amb: .62, fade, fdi}); }
+        for (let r = 0; r < Rs.length - 1; r++) { const A = Rs[r], B = Rs[r + 1], yMid = (prof[r][0] + prof[r + 1][0]) / 2;
+          for (let m = 0; m < SEG; m++) { const q = [A[m], A[(m + 1) % SEG], B[(m + 1) % SEG], B[m]]; face(q, outward(q, polyN(q), tc), col(yMid), {kind: 'tooth', spec: .5, amb: .6, fade, fdi, unk}); } }
+        /* Abschluss: Schneidekante flach, Eckzahn mit Spitze, Seitenzähne mit leichter Mulde */
+        const topY = t.h * (type === 'canine' ? 1.06 : type === 'incisor' ? 1 : .955);
+        const apex = vtx([f.p[0] + f.N[0] * (tilt * topY - (prof[prof.length - 1][3] || 0) * t.d), j * topY + dyP, f.p[2] + f.N[2] * (tilt * topY - (prof[prof.length - 1][3] || 0) * t.d)], jaw, grp);
+        const Rt = Rs[Rs.length - 1];
+        for (let m = 0; m < SEG; m++) { const q = [Rt[m], Rt[(m + 1) % SEG], apex]; face(q, outward(q, polyN(q), tc), col(1), {kind: 'tooth', spec: .5, amb: .62, fade, fdi, unk}); }
         if (J.aligner) { /* durchsichtige Schiene: etwas größere Hülle um die Krone */
           const Ss = [ring(t.h * .22, 1.1, 1.22), ring(t.h * .62, 1.1, 1.2), ring(t.h * .9, 1.05, 1.12), ring(t.h + .025, t.top[0] * 1.06 + .05, t.top[1] * 1.08 + .05)];
           for (let r = 0; r < Ss.length - 1; r++) { const A = Ss[r], B = Ss[r + 1];
@@ -562,7 +586,7 @@ function mountModel(canvas, data, opts){
       }
       const hl = m.hl, items = [], pick = [];
       for (const fc of M.F) {
-        let alpha = fc.kind === 'shell' ? (rise(fc.grp) > .01 ? .42 : 0) : fc.kind === 'base' ? baseA : fc.kind === 'metal' ? pop(fc.grp - 1000) : rise(fc.grp) > .01 ? 1 : 0;
+        let alpha = fc.kind === 'shell' ? (rise(fc.grp) > .01 ? .42 : 0) : fc.kind === 'base' ? baseA : fc.kind === 'gum' ? (rise(fc.grp - 1000) > .01 ? 1 : 0) : fc.kind === 'metal' ? pop(fc.grp - 1000) : rise(fc.grp) > .01 ? 1 : 0;
         if (alpha <= 0) continue;
         if (fc.fade) alpha *= .26;
         let cx = 0, cy = 0, cz = 0;
