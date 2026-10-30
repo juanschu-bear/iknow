@@ -115,9 +115,9 @@ export default function PracticeScreen({ onViewer }: { onViewer: (v: Viewer | nu
           <div className="who">
             <h1>Hoffmann, Lea</h1>
             <div className="chips">
-              <span className="chip room">heute Zimmer 2, 09:05</span>
+              <span className="chip room" {...ctx("chip-zimmer", "Heute Zimmer 2", { zeit: "09:05" })}>heute Zimmer 2, 09:05</span>
               <span className="chip">geb. 14.03.2013</span>
-              <span className="chip">Kasse, AOK Plus</span>
+              <span className="chip" {...ctx("chip-kasse", "Kasse, AOK Plus", { versicherung: "gesetzlich" })}>Kasse, AOK Plus</span>
               <span className="chip">beide Kiefer</span>
               <span className="chip">Feste Phase seit 12.02.2025</span>
             </div>
@@ -164,20 +164,20 @@ export default function PracticeScreen({ onViewer }: { onViewer: (v: Viewer | nu
             <div className="card" {...ctx("heute", "Heute in der Praxis", { verlauf: PAGE_CONTEXT.heute })}>
               <span className="lbl">Heute in der Praxis</span>
               <ul className="tl">
-                <li><time>08:52</time>Angemeldet am Empfang, Anamnese aktuell</li>
-                <li><time>09:05</time>Zimmer 2, Behandlung bei Dr. Schubert</li>
-                <li><time>09:31</time>In Scribe dokumentiert und bestätigt</li>
-                <li className="open"><time>jetzt</time><b>Im Behandlungskonto, wartet auf Sabine</b></li>
-                <li className="next"><time>danach</time>Rechnung ins Portal, Familie wird benachrichtigt</li>
+                <li {...ctx("heute-0852", "08:52 Anmeldung", { zeit: "08:52", was: "Angemeldet am Empfang, Anamnese aktuell" })}><time>08:52</time>Angemeldet am Empfang, Anamnese aktuell</li>
+                <li {...ctx("heute-0905", "09:05 Behandlung", { zeit: "09:05", was: "Zimmer 2, Behandlung bei Dr. Schubert" })}><time>09:05</time>Zimmer 2, Behandlung bei Dr. Schubert</li>
+                <li {...ctx("heute-0931", "09:31 Scribe", { zeit: "09:31", was: "In Scribe dokumentiert und bestätigt" })}><time>09:31</time>In Scribe dokumentiert und bestätigt</li>
+                <li className="open" {...ctx("heute-jetzt", "Jetzt", { was: "Im Behandlungskonto, wartet auf Sabine" })}><time>jetzt</time><b>Im Behandlungskonto, wartet auf Sabine</b></li>
+                <li className="next" {...ctx("heute-danach", "Danach", { was: "Rechnung ins Portal, Familie wird benachrichtigt" })}><time>danach</time>Rechnung ins Portal, Familie wird benachrichtigt</li>
               </ul>
             </div>
 
             <div className="card" {...ctx("scribe", "Scribe-Einträge", { eintraege: PAGE_CONTEXT.scribe })}>
               <span className="lbl">Scribe</span>
-              <div className="scr"><div className="top"><span>heute, 09:31 · Zimmer 2</span><span>Dr. Schubert</span></div>
+              <div className="scr" {...ctx("scribe-heute", "Scribe-Eintrag heute 09:31", PAGE_CONTEXT.scribe[0])}><div className="top"><span>heute, 09:31 · Zimmer 2</span><span>Dr. Schubert</span></div>
                 <p>Bogenwechsel OK auf NiTi 0.016. Bracket 24 neu geklebt. UK Kontrolle, Bogen bleibt.</p>
                 <div className="tags"><span className="ok">bestätigt</span><span>heute gemacht</span><span>Bogen OK</span><span>Bracket 24</span></div></div>
-              <div className="scr"><div className="top"><span>02.10.2026 · Zimmer 1</span><span>Dr. Schubert</span></div>
+              <div className="scr" {...ctx("scribe-0210", "Scribe-Eintrag 02.10.2026", PAGE_CONTEXT.scribe[1])}><div className="top"><span>02.10.2026 · Zimmer 1</span><span>Dr. Schubert</span></div>
                 <p>Kontrolle, Bögen nachgespannt OK und UK. Mundhygiene gut.</p>
                 <div className="tags"><span className="ok">bestätigt</span><span>abgerechnet</span></div></div>
             </div>
@@ -185,17 +185,17 @@ export default function PracticeScreen({ onViewer }: { onViewer: (v: Viewer | nu
             <div className="card" {...ctx("konto", "Behandlungskonto", PAGE_CONTEXT.behandlung)}>
               <span className="lbl">Behandlungskonto</span>
               <div className="kv">
-                <div><small>Behandlungsquartal</small><b>7 <span>von 12</span></b><div className="meter"><i style={{ width: "58%" }} /></div></div>
-                <div><small>Bögen verbraucht</small><b>6 <span>von 10</span></b><div className="meter"><i style={{ width: "60%" }} /></div></div>
-                <div className="warn"><small>Abschlag Q4 2026</small><b>wartet auf Sabine</b></div>
-                <div><small>Plan</small><b style={{ fontSize: 16 }}>genehmigt</b></div>
+                <div {...ctx("kv-quartal", "Behandlungsquartal", { wert: "7 von 12", hinweis: "Behandlungsquartale zählen ab Behandlungsbeginn" })}><small>Behandlungsquartal</small><b>7 <span>von 12</span></b><div className="meter"><i style={{ width: "58%" }} /></div></div>
+                <div {...ctx("kv-boegen", "Bögen verbraucht", { wert: "6 von 10", heute: "Bogenwechsel OK bestätigt, noch nicht gezählt" })}><small>Bögen verbraucht</small><b>6 <span>von 10</span></b><div className="meter"><i style={{ width: "60%" }} /></div></div>
+                <div className="warn" {...ctx("kv-abschlag", "Abschlag Q4 2026", { status: "wartet auf Sabine", abgerechnet: "Q1 bis Q3" })}><small>Abschlag Q4 2026</small><b>wartet auf Sabine</b></div>
+                <div {...ctx("kv-plan", "Plan", { status: "genehmigt" })}><small>Plan</small><b style={{ fontSize: 16 }}>genehmigt</b></div>
               </div>
             </div>
 
             <div className="card" {...ctx("rechnungen", "Rechnungen und Zahlung", { eintraege: PAGE_CONTEXT.rechnungen })}>
               <span className="lbl">Rechnungen und Zahlung</span>
-              <div className="pay"><span><b>Zusatzleistung Q3</b><small>im Portal, von der Familie geöffnet</small></span><span className="st ok">heute gebucht</span></div>
-              <div className="pay"><span><b>Abschlag Q4</b><small>entsteht nach Sabines Bestätigung</small></span><span className="st wait">noch offen</span></div>
+              <div className="pay" {...ctx("rechnung-zusatz-q3", "Rechnung Zusatzleistung Q3", { art: "Zusatzleistung, von der Familie selbst bezahlt", quartal: "Q3", portal: "im Portal, von der Familie geöffnet", zahlung: "heute auf dem Konto gebucht und zugeordnet" })}><span><b>Zusatzleistung Q3</b><small>im Portal, von der Familie geöffnet</small></span><span className="st ok">heute gebucht</span></div>
+              <div className="pay" {...ctx("rechnung-abschlag-q4", "Abschlag Q4", { status: "noch offen", entsteht: "nach Sabines Bestätigung" })}><span><b>Abschlag Q4</b><small>entsteht nach Sabines Bestätigung</small></span><span className="st wait">noch offen</span></div>
             </div>
             <p className="draft">Beispieldaten</p>
           </aside>

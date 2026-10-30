@@ -87,3 +87,21 @@
   .ik-hint{white-space:normal;width:calc(100vw - 24px);text-align:center}
 }
 @media (prefers-reduced-motion:reduce){.ik-ans,.g .draw,.pop{animation:none !important;opacity:1;stroke-dashoffset:0}}
+
+/* ===== Live-Zeichnen ===== */
+.ik-sheet{border-radius:16px;background:linear-gradient(180deg,#FCFDFC,#F3F6F5);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
+.ik-sheet svg{display:block;width:100%;height:auto}
+.ik-sheet.wait{display:grid;place-items:center;height:160px;color:var(--fg3);font-size:13px;font-weight:600}
+.ik-pen{transition:opacity 300ms ease;filter:drop-shadow(0 2px 4px rgba(11,87,97,.35))}
+.ik-say{margin-top:12px;font-size:14px;line-height:1.55;color:var(--fg3)}
+.ik-say span{transition:color 300ms ease}
+.ik-say span.now{color:var(--fg);font-weight:600}
+.ik-say:not(:has(.now)) span{color:var(--fg2)}
+.ik-say .muted{color:var(--fg3);font-style:italic}
+.lab-btn.on{background:var(--accent);color:#fff;box-shadow:none}
+
+/* ===== Freie Umrandung ===== */
+.ik-lasso{position:fixed;inset:0;width:100%;height:100%;z-index:71;pointer-events:none}
+.ik-lasso .dim{fill:rgba(16,36,42,.16)}
+.ik-lasso .shape{fill:rgba(127,211,217,.12);stroke:#1A8C97;stroke-width:3;stroke-linejoin:round;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(26,140,151,.45))}
+.ik-lasso.drawing .shape{stroke-dasharray:8 6}

@@ -1,9 +1,8 @@
 import OpenAI, { type DataResidency } from "openai";
-import { ANSWER_SCHEMA } from "@/lib/schema";
 import { SYSTEM_PROMPT, buildUserContent } from "@/lib/prompt";
 import { estimateCost } from "@/lib/pricing";
-import { mockAnswer } from "@/lib/mock";
-import type { AskRequest, IKnowAnswer, StreamEvent, Tier, Usage } from "@/lib/types";
+import { mockLines } from "@/lib/mock";
+import type { AskRequest, StreamEvent, Tier, Usage } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +11,7 @@ export const maxDuration = 60;
 const MODEL = "gpt-6.1-sol";
 const MAX_IMAGE_CHARS = 8_000_000; // ca. 6 MB je Bild als Base64
 
-/* Einfache Bremse gegen versehentliche Dauerschleifen: 40 Anfragen je 10 Minuten und Instanz. */
+/* Bremse gegen versehentliche Dauerschleifen: 40 Anfragen je 10 Minuten und Instanz. */
 const hits: number[] = [];
 function rateLimited(): boolean {
   const now = Date.now();
@@ -40,12 +39,6 @@ function validate(body: unknown): AskRequest | string {
     if (b.crop.length > MAX_IMAGE_CHARS || (b.full && b.full.length > MAX_IMAGE_CHARS)) return "Bild ist zu groß.";
   }
   return b as AskRequest;
-}
-
-function parseAnswer(raw: string): IKnowAnswer {
-  const a = JSON.parse(raw) as IKnowAnswer;
-  if (a.kind !== "baustein" && a.kind !== "frei") throw new Error("kind fehlt");
-  return a;
 }
 
 function residency(): DataResidency | undefined {
@@ -77,12 +70,15 @@ export async function POST(req: Request): Promise<Response> {
       send({ t: "start", mock, tier });
       try {
         if (mock) {
-          const answer = mockAnswer(ask);
-          for (let i = 1; i <= 6; i++) {
-            await new Promise((r) => setTimeout(r, 120));
-            send({ t: "delta", n: i * 120 });
+          // Zeichenweise wie ein echtes Modell, damit Live-Zeichnen sichtbar wird.
+          const text = mockLines(ask).join("\n") + "\n";
+          let first: number | null = null;
+          for (let i = 0; i < text.length; i += 18) {
+            await new Promise((r) => setTimeout(r, 35));
+            if (first === null) first = Date.now() - t0;
+            send({ t: "delta", d: text.slice(i, i + 18) });
           }
-          send({ t: "done", answer, usage: null, servedTier: null, ms: { first: 120, total: Date.now() - t0 }, costUsd: null, mock: true });
+          send({ t: "done", usage: null, servedTier: null, ms: { first, total: Date.now() - t0 }, costUsd: null, mock: true });
           controller.close();
           return;
         }
@@ -95,20 +91,15 @@ export async function POST(req: Request): Promise<Response> {
           stream: true,
           instructions: SYSTEM_PROMPT,
           input: [{ role: "user", content: buildUserContent(ask) }],
-          text: {
-            format: { type: "json_schema", name: "iknow_answer", schema: ANSWER_SCHEMA as unknown as Record<string, unknown>, strict: true },
-          },
         });
 
-        let text = "";
         let first: number | null = null;
         let usage: Usage | null = null;
         let servedTier: string | null = null;
         for await (const event of response) {
           if (event.type === "response.output_text.delta") {
             if (first === null) first = Date.now() - t0;
-            text += event.delta;
-            send({ t: "delta", n: text.length });
+            send({ t: "delta", d: event.delta });
           } else if (event.type === "response.completed") {
             const u = event.response.usage;
             if (u) usage = { input: u.input_tokens, output: u.output_tokens, cached: u.input_tokens_details?.cached_tokens ?? 0 };
@@ -117,8 +108,7 @@ export async function POST(req: Request): Promise<Response> {
             throw new Error(event.message);
           }
         }
-        const answer = parseAnswer(text);
-        send({ t: "done", answer, usage, servedTier, ms: { first, total: Date.now() - t0 }, costUsd: estimateCost(tier, usage), mock: false });
+        send({ t: "done", usage, servedTier, ms: { first, total: Date.now() - t0 }, costUsd: estimateCost(tier, usage), mock: false });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unbekannter Fehler";
         // Nur die Fehlermeldung loggen, nie Frage, Bilder oder Praxisdaten.
@@ -134,6 +124,7 @@ export async function POST(req: Request): Promise<Response> {
       "Content-Type": "application/x-ndjson; charset=utf-8",
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
+      "X-Accel-Buffering": "no",
     },
   });
 }

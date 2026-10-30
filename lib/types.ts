@@ -32,14 +32,10 @@ export interface AskRequest {
   full?: string;
 }
 
-/** Was das Modell zurückgibt (Structured Output). */
-export interface IKnowAnswer {
+/** Kopfzeile einer Antwort (@meta). */
+export interface AnswerMeta {
   kind: "baustein" | "frei";
   title: string;
-  text: string;
-  baustein: BausteinName;
-  baustein_data: string;
-  html: string;
   focus: string[];
 }
 
@@ -51,10 +47,9 @@ export interface Usage {
 
 export type StreamEvent =
   | { t: "start"; mock: boolean; tier: Tier }
-  | { t: "delta"; n: number }
+  | { t: "delta"; d: string }
   | {
       t: "done";
-      answer: IKnowAnswer;
       usage: Usage | null;
       servedTier: string | null;
       ms: { first: number | null; total: number };
