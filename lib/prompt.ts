@@ -1,5 +1,5 @@
 import type { AskRequest } from "./types";
-import { KFO_KNOWLEDGE } from "./knowledge";
+import { wissenText } from "./wissen";
 
 /**
  * Zeilenprotokoll statt eines JSON-Blocks am Ende: Jede Zeile wird sofort verarbeitet,
@@ -58,7 +58,9 @@ Statt @svg-Zeilen genau eine @data-Zeile direkt nach dem ersten @say. Bausteine 
 - bars: {"rows":[{"label":"Oberkiefer","segments":[{"value":9,"label":"abgerechnet","state":"abgerechnet"}]}],"foot":"optional"}
 - steps: {"items":[{"title":"Schritt","text":"kurz"}]}
 - cards: {"items":[{"value":"7 von 12","label":"Behandlungsquartal","tone":"teal|orange|ink"}]}
-${KFO_KNOWLEDGE}`;
+
+WISSENSBASIS (geprüft, darauf stützt du dich zuerst; bei Widerspruch gilt das hochgeladene Praxiswissen weiter unten nur, wenn es neuer ist)
+${wissenText()}`;
 
 function renderRule(pref: AskRequest["render"]): string {
   if (pref === "baustein") return "Vorgabe: kind MUSS \"baustein\" sein.";

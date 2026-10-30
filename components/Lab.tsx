@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import PracticeScreen, { PAGE_CONTEXT } from "./PracticeScreen";
 import LiveAnswer, { SketchFeed } from "./LiveAnswer";
+import WissenPanel from "./WissenPanel";
 import { stopSpeaking } from "@/lib/voice";
 import { Dictation, transcribe } from "@/lib/dictation";
 import type { AnswerMeta, AskRequest, ContextItem, RenderPref, Source, StreamEvent, Tier, Usage } from "@/lib/types";
@@ -117,6 +118,7 @@ export default function Lab() {
   const [needCode, setNeedCode] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [hideUi, setHideUi] = useState(false);
+  const [showKnow, setShowKnow] = useState(false);
 
   const viewer = useRef<Viewer | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -508,6 +510,7 @@ export default function Lab() {
         <div className="lab-right">
           {sharing && <button type="button" className="lab-btn" onClick={stopSharing}>Freigabe beenden</button>}
           {<button type="button" className={"lab-btn" + (voice ? " on" : "")} onClick={() => { setVoice((v) => !v); stopSpeaking(); }} aria-pressed={voice}>{voice ? "Stimme an" : "Stimme aus"}</button>}
+          <button type="button" className="lab-btn" onClick={() => setShowKnow(true)}>Wissen</button>
           <button type="button" className="lab-btn" onClick={() => setShowRuns((s) => !s)}>Messwerte {runs.length ? `(${runs.length})` : ""}</button>
           {mockMode !== null && <span className={"lab-pill " + (mockMode ? "mock" : "live")}>{mockMode ? "Probelauf ohne Modell" : "Live mit Modell"}</span>}
         </div>
@@ -589,6 +592,8 @@ export default function Lab() {
           </div>
         </>
       )}
+
+      {showKnow && <WissenPanel headers={{ "x-iknow-code": readCode() }} onClose={() => setShowKnow(false)} />}
 
       {showRuns && (
         <div className="lab-runs" role="dialog" aria-label="Messwerte">

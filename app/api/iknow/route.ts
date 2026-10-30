@@ -2,6 +2,7 @@ import OpenAI, { type DataResidency } from "openai";
 import { SYSTEM_PROMPT, buildUserContent } from "@/lib/prompt";
 import { estimateCost } from "@/lib/pricing";
 import { mockLines } from "@/lib/mock";
+import { uploads, uploadsText } from "@/lib/wissen-store";
 import type { AskRequest, StreamEvent, Tier, Usage } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -89,13 +90,17 @@ export async function POST(req: Request): Promise<Response> {
           return;
         }
 
+        // Hochgeladenes Praxiswissen hinten an die festen Anweisungen, damit der Anfang gleich bleibt (Zwischenspeicher).
+        let extra = "";
+        try { extra = uploadsText(await uploads()); } catch (e) { console.error("[iknow] wissen:", e instanceof Error ? e.message : "unbekannt"); }
         const client = new OpenAI({ dataResidency: residency(), maxRetries: 1, timeout: 55_000 });
         const response = await client.responses.create({
           model: MODEL,
           service_tier: tier === "ultrafast" ? "ultrafast" : "default",
           store: false,
           stream: true,
-          instructions: SYSTEM_PROMPT,
+          instructions: SYSTEM_PROMPT + extra,
+          prompt_cache_key: "iknow-wissen",
           input: [
             ...(ask.history ?? []).flatMap((h) => [
               { role: "user" as const, content: h.question },

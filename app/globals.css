@@ -128,3 +128,33 @@
 .ik-ask-actions button{border:0;border-radius:10px;padding:6px 11px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.1);color:#fff}
 .ik-ans .top-act{display:flex;gap:6px;align-items:center}
 .ik-ans .redo{border:0;border-radius:9px;height:28px;padding:0 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;background:var(--accent-soft);color:var(--accent)}
+
+/* ===== Was IKnow weiß ===== */
+.ik-know-back{position:fixed;inset:0;z-index:90;background:rgba(16,36,42,.28);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:grid;place-items:center;padding:16px;animation:ikfade .18s ease-out both}
+.ik-know{width:min(640px,100%);max-height:calc(100vh - 32px);overflow:auto;border-radius:22px;background:#fff;box-shadow:0 0 0 1px var(--line),0 40px 80px -30px rgba(16,36,42,.55);padding:18px 18px 16px;color:var(--fg);animation:ikin .28s cubic-bezier(.2,.9,.25,1) both;font-size:13.5px}
+.ik-know .kh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.ik-know .kh b{font-size:17px;letter-spacing:-.01em;display:block}
+.ik-know .kh small{color:var(--fg3)}
+.ik-know .x{border:0;background:rgba(16,36,42,.06);width:28px;height:28px;border-radius:9px;cursor:pointer;font-size:14px;color:var(--fg2);flex:none}
+.ik-know section{padding:12px 0;border-top:1px solid var(--line)}
+.ik-know h5{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg2);display:flex;justify-content:space-between;gap:8px}
+.ik-know h5 span{text-transform:none;letter-spacing:0;color:var(--fg3);font-weight:600}
+.ik-know .klist{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ik-know .klist li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 10px;border-radius:12px;background:#F6F8F7;box-shadow:inset 0 0 0 1px var(--line)}
+.ik-know .klist small{grid-column:1;color:var(--fg3);font-size:12px;line-height:1.35}
+.ik-know .kdel{grid-row:1/span 2;grid-column:2;align-self:center;border:0;border-radius:9px;padding:6px 10px;font:inherit;font-size:12px;font-weight:700;background:#FFF0E6;color:#9A3412;cursor:pointer}
+.ik-know .kmeter{margin-top:10px;display:grid;gap:6px}
+.ik-know .kmeter .bar{height:6px;border-radius:9px;background:rgba(16,36,42,.08);overflow:hidden}
+.ik-know .kmeter .bar i{display:block;height:100%;background:linear-gradient(90deg,#1A8C97,#0B5761);border-radius:inherit;transition:width .4s cubic-bezier(.2,.9,.25,1)}
+.ik-know .kmeter small,.ik-know .muted{color:var(--fg3);font-size:12px;line-height:1.45;margin:0}
+.ik-know .krow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ik-know input,.ik-know textarea{width:100%;border:0;border-radius:12px;padding:10px 12px;font:inherit;font-size:13.5px;background:#F1F4F3;box-shadow:inset 0 0 0 1px var(--line);color:var(--fg);outline:0;resize:vertical}
+.ik-know .krow input{flex:1;width:auto}
+.ik-know input:focus,.ik-know textarea:focus{box-shadow:inset 0 0 0 1.5px #1A8C97;background:#fff}
+.ik-know .kadd{display:grid;gap:8px}
+.ik-know .kgo{border:0;border-radius:12px;height:40px;padding:0 16px;font:inherit;font-weight:700;background:linear-gradient(135deg,#1A8C97,#0B5761);color:#fff;cursor:pointer;transition:transform .12s ease}
+.ik-know .kgo:active{transform:scale(.97)}
+.ik-know .kgo:disabled{opacity:.45;cursor:default}
+.ik-know .kghost{border:0;border-radius:12px;height:40px;padding:0 14px;font:inherit;font-weight:700;background:var(--accent-soft);color:var(--accent);cursor:pointer}
+@keyframes ikfade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.ik-know,.ik-know-back{animation:none}}
