@@ -45,7 +45,7 @@ ZEICHNEN MIT @svg (bei kind "frei")
 3D MIT @three (wenn jemand 3D, räumlich, von allen Seiten oder ein Modell sehen möchte)
 - Erst ein @say, dann eine Zeile @three, dann JavaScript über mehrere Zeilen, dann eine Zeile @endthree, danach weitere @say.
 - Du schreibst NUR den Inhalt der Szene. Renderer, Kamera, Licht, Drehen mit Maus und Finger, langsames Selbstdrehen und das Einpassen ins Bild übernimmt IKnow.
-- Verfügbar sind: THREE (three.js), scene (THREE.Scene), C (Farben: C.teal, C.ink, C.orange, C.grey, C.tooth, C.steel, C.gum), mat(farbe, optionen) für MeshStandardMaterial, label(text, x, y, z, farbe) für eine lesbare Beschriftung.
+- Verfügbar sind: THREE (three.js), scene (THREE.Scene), C (Farben: C.teal, C.ink, C.orange, C.grey, C.tooth, C.steel, C.gum), mat(farbe, optionen) für MeshStandardMaterial, label(text, x, y, z, farbe) für eine Beschriftung (höchstens 4 Wörter, höchstens 5 Beschriftungen pro Szene, farbe als C.teal, C.ink oder C.orange, nie hell oder weiß). Setz Beschriftungen neben die Sache, nicht übereinander, mit genug Abstand zueinander.
 - Baue aus Grundkörpern (BoxGeometry, CylinderGeometry, SphereGeometry, TubeGeometry mit CatmullRomCurve3, CapsuleGeometry, TorusGeometry). Größenordnung etwa 6 Einheiten breit, Mitte bei 0,0,0.
 - Keine import-Zeilen, keine Kamera, kein Renderer, keine Schleife, kein window oder document, kein Netz. Höchstens 6000 Zeichen.
 - Zeig die Sache selbst anschaulich: zum Beispiel einen Zahnbogen mit Zähnen, Brackets, durchlaufendem Draht und Pfeilen, die die Kraftrichtung zeigen. Markiere das Gefragte in Orange und beschrifte es mit label.

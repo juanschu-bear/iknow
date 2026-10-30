@@ -26,22 +26,29 @@ const key = new THREE.DirectionalLight(0xffffff, 1.8); key.position.set(4, 7, 5)
 const rim = new THREE.DirectionalLight(0xbfe6ea, 0.8); rim.position.set(-5, 3, -4); scene.add(rim);
 const C = { teal: 0x0B5761, ink: 0x10242A, orange: 0xEA7A3C, grey: 0xC9D3D2, tooth: 0xFBF9F5, steel: 0xB6C0C6, gum: 0xE8B4B0 };
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0.08, ...o });
-const label = (text, x, y, z, color = "#10242A") => {
-  const c = document.createElement("canvas"); const g = c.getContext("2d"); const f = 44;
-  g.font = "700 " + f + "px system-ui"; const w = Math.ceil(g.measureText(String(text)).width) + 36;
-  c.width = w; c.height = f + 28; g.font = "700 " + f + "px system-ui";
-  g.fillStyle = "rgba(255,255,255,0.94)"; g.beginPath(); g.roundRect(0, 0, w, c.height, 18); g.fill();
-  g.fillStyle = color; g.textBaseline = "middle"; g.fillText(String(text), 18, c.height / 2 + 2);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
-  const k = 0.012; s.scale.set(w * k, c.height * k, 1); s.position.set(x, y, z); s.renderOrder = 10;
-  scene.add(s); return s;
+const _labels = [];
+// Farbe als Zahl (C.teal) oder Text annehmen; zu helle Farben durch Dunkel ersetzen, damit Schrift auf Weiß lesbar bleibt.
+const _css = (c) => typeof c === "number" ? "#" + (c >>> 0).toString(16).padStart(6, "0").slice(-6) : (typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c) ? c : "#10242A");
+const _ink = (hex) => { const n = parseInt(hex.slice(1), 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255; const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255; if (l > 0.8) return "#10242A"; if (l <= 0.5) return hex; const d = (v) => Math.round(v * 0.62).toString(16).padStart(2, "0"); return "#" + d(r) + d(g) + d(b); };
+const label = (text, x, y, z, color) => {
+  const ink = _ink(_css(color)); const t = String(text).slice(0, 32);
+  const c = document.createElement("canvas"); const g = c.getContext("2d"); const f = 40;
+  g.font = "700 " + f + "px system-ui, Arial"; const w = Math.ceil(g.measureText(t).width) + 40;
+  c.width = w; c.height = f + 30; g.font = "700 " + f + "px system-ui, Arial";
+  g.fillStyle = "rgba(255,255,255,0.96)"; g.beginPath(); g.roundRect(2, 2, w - 4, c.height - 4, 16); g.fill();
+  g.lineWidth = 4; g.strokeStyle = ink; g.stroke();
+  g.fillStyle = ink; g.textBaseline = "middle"; g.fillText(t, 20, c.height / 2 + 2);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+  s.position.set(x, y, z); s.renderOrder = 10; s.userData.aspect = w / c.height;
+  scene.add(s); _labels.push(s); return s;
 };
 `;
 
 const WRAPPER_TAIL = `
 const box = new THREE.Box3();
 scene.traverse((o) => { if (o.isMesh) box.expandByObject(o); });
+if (box.isEmpty()) _labels.forEach((s) => s.scale.set(0.3 * s.userData.aspect, 0.3, 1));
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 1.1;
 if (!box.isEmpty()) {
@@ -49,6 +56,9 @@ if (!box.isEmpty()) {
   const r = Math.max(size.x, size.y, size.z);
   controls.target.copy(center);
   camera.position.set(center.x, center.y + r * 0.55, center.z + r * 1.35);
+  // Beschriftungen an die Szenengröße anpassen: klein und gleich groß, damit sie nichts zudecken.
+  const lh = r * 0.055;
+  _labels.forEach((s) => s.scale.set(lh * s.userData.aspect, lh, 1));
   camera.near = r / 100; camera.far = r * 20; camera.updateProjectionMatrix();
 }
 window.addEventListener("resize", () => { camera.aspect = window.innerWidth / H; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, H); });

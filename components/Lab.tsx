@@ -129,7 +129,6 @@ export default function Lab() {
   const [askPos, setAskPos] = useState<{ x: number; y: number } | null>(null);
   const [ansPos, setAnsPos] = useState<{ x: number; y: number } | null>(null);
   const runId = useRef(0);
-  const pendingQ = useRef<string | null>(null);
   const dict = useRef<Dictation | null>(null);
   const [listening, setListening] = useState<"off" | "rec" | "busy">("off");
   const phaseRef = useRef<Phase>("idle");
@@ -170,6 +169,7 @@ export default function Lab() {
       if (ph === "thinking" || ph === "draw") return;
       if (ph === "answer" && !finishedRef.current) return;
       e.preventDefault();
+      if (ph === "idle") { begin(); return; } // erst umranden, dann fragen
       stopSpeaking();
       if (!dict.current) dict.current = new Dictation();
       setListening("rec");
@@ -186,8 +186,7 @@ export default function Lab() {
         setListening("off");
         if (!text) return;
         const ph = phaseRef.current;
-        if (ph === "idle") { pendingQ.current = text; begin(); }
-        else if (ph === "ask") { setQuestion(text); send(undefined, undefined, { question: text }); }
+        if (ph === "ask") { setQuestion(text); send(undefined, undefined, { question: text }); }
         else if (ph === "answer") send(undefined, text);
       } catch (err) {
         setListening("off");
@@ -348,19 +347,15 @@ export default function Lab() {
     }
     anchorsRef.current = anchors;
     setShift({ x: 0, y: 0 });
-    const spoken = pendingQ.current;
-    pendingQ.current = null;
     if (source === "daten") {
       const found = collectItems(poly);
       setItems(found);
       const hl = found.map((i) => i.key).filter((k) => /^[BWN]-/.test(k));
       if (hl.length) viewer.current?.highlight(hl);
-      setQuestion(spoken ?? "Was ist das hier, und was bedeutet es für Hoffmann, Lea?");
-      if (spoken) { send(undefined, undefined, { question: spoken, items: found }); return; }
+      setQuestion("");
     } else {
       const shot = cropFromStill(box, poly);
-      setQuestion(spoken ?? "Was ist das hier, und was bedeutet es?");
-      if (spoken && shot) { send(undefined, undefined, { question: spoken, crop: shot.crop, full: shot.full }); return; }
+      setQuestion("");
     }
     setPhase("ask");
   };
@@ -397,7 +392,7 @@ export default function Lab() {
 
   /* ---------- Fragen ---------- */
   async function send(code?: string, follow?: string, o?: { question?: string; items?: ContextItem[]; crop?: string; full?: string }) {
-    const q = (follow ?? o?.question ?? question).trim();
+    const q = (follow ?? o?.question ?? question).trim() || "Was ist das hier, und was bedeutet es?";
     const useItems = o?.items ?? items, useCrop = o?.crop ?? crop ?? undefined, useFull = o?.full ?? full ?? undefined;
     if (!q) return;
     const hist = follow ? history.slice(-3) : [];
@@ -522,14 +517,13 @@ export default function Lab() {
 
       <button className={"ik-fab" + (phase !== "idle" ? " on" : "")} type="button" onClick={() => (phase === "idle" ? begin() : reset())} aria-label="IKnow fragen: Bereich umrahmen">
         <i><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><circle cx="12" cy="12" r="2.5" /></svg></i>
-        <span>{phase === "idle" ? "IKnow fragen" : "Abbrechen"}<small>umranden · oder Leertaste halten</small></span>
+        <span>{phase === "idle" ? "IKnow fragen" : "Abbrechen"}<small>erst umranden, dann fragen · Leertaste</small></span>
       </button>
 
       {listening !== "off" && <div className={"ik-mic " + listening}><i />{listening === "rec" ? "Ich höre zu … Leertaste loslassen" : "Verstehe …"}</div>}
       {phase === "draw" && (
         <>
-          {pendingQ.current && <div className="ik-hint q">„{pendingQ.current}“</div>}
-          <div className="ik-hint">Mit Maus oder Finger <b>frei um das zeichnen</b>, was du wissen willst · Esc bricht ab</div>
+          <div className="ik-hint">Mit Maus oder Finger <b>frei um das zeichnen</b>, was du wissen willst. Danach fragst du · Esc bricht ab</div>
           <div className={"ik-layer" + (still ? " still" : "")} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}>
             {still && <img ref={stillImg} src={still} alt="Aufgenommener Bildschirm" draggable={false} />}
           </div>
@@ -556,7 +550,7 @@ export default function Lab() {
             </div>
           ) : (
             <div className="row">
-              <textarea ref={qRef} rows={2} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} aria-label="Deine Frage" />
+              <textarea ref={qRef} rows={2} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} aria-label="Deine Frage" placeholder="Frage tippen oder Leertaste halten und sprechen" />
               <button className="go" type="button" onClick={() => send()}>Fragen</button>
             </div>
           )}
