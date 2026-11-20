@@ -175,3 +175,21 @@
 .ik-spoken{margin-top:10px;font-size:12.5px}
 .ik-spoken summary{cursor:pointer;color:var(--accent);font-weight:650}
 .ik-spoken p{margin:8px 0 0;font-size:13px;line-height:1.55;color:var(--fg2)}
+
+/* IKnow-Figur: steht auf dem Knopf, Zustand folgt dem Schritt */
+.ikf{display:block;overflow:visible}
+.ikf-bob,.ikf-shadow,.ikf-blink,.ikf-pulse,.ikf-wave,.ikf-dot,.ikf-pop{transform-box:fill-box;transform-origin:center}
+.ikf-bob{animation:ikf-bob 3.2s ease-in-out infinite}@keyframes ikf-bob{50%{transform:translateY(-5px)}}
+.ikf-shadow{animation:ikf-sh 3.2s ease-in-out infinite}@keyframes ikf-sh{50%{transform:scaleX(.9);opacity:.18}}
+.ikf-blink{animation:ikf-blink 4.6s infinite}@keyframes ikf-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
+.ikf-march{animation:ikf-march 1s linear infinite}@keyframes ikf-march{to{stroke-dashoffset:-29}}
+.ikf-pulse{animation:ikf-pulse 1.4s ease-in-out infinite}@keyframes ikf-pulse{50%{transform:scale(1.35);opacity:.55}}
+.ikf-wave{animation:ikf-wave .9s ease-in-out infinite}.ikf-w1{animation-delay:.15s}.ikf-w2{animation-delay:.3s}.ikf-w3{animation-delay:.45s}@keyframes ikf-wave{50%{transform:scaleY(.35)}}
+.ikf-dot{animation:ikf-dot 1.2s ease-in-out infinite}.ikf-d1{animation-delay:.2s}.ikf-d2{animation-delay:.4s}@keyframes ikf-dot{50%{transform:translateY(-7px);opacity:.4}}
+.ikf-pop{animation:ikf-pop 2.6s ease-in-out infinite}@keyframes ikf-pop{0%,100%{transform:translateY(0) rotate(4deg)}50%{transform:translateY(-6px) rotate(-2deg)}}
+@media (prefers-reduced-motion:reduce){.ikf *{animation:none!important}}
+.ik-fab.fig{align-items:flex-end;gap:2px;padding:10px 18px 10px 0;border-radius:22px;background:var(--ikf-pill,#1b1147);box-shadow:0 18px 40px -14px rgba(10,6,32,.85),inset 0 1px 0 rgba(255,255,255,.18)}
+.ik-fab.fig.on{background:var(--ikf-pill,#1b1147);filter:saturate(.9)}
+.ik-fab.fig .ikf{width:128px;height:auto;flex:none;margin:-92px -10px -14px -16px;stroke:none;fill:initial;stroke-width:initial;filter:drop-shadow(0 8px 10px rgba(0,0,0,.35));pointer-events:none}
+.ik-fab.fig>span{padding-bottom:3px}
+@media (max-width:640px){.ik-fab.fig{padding:8px 14px 8px 0}.ik-fab.fig .ikf{width:96px;margin:-68px -8px -11px -12px}}

@@ -1,5 +1,6 @@
 "use client";
 
+import IKnowFigure, { FIGURE_COLORS, FIGURE_COLOR_KEYS, figureStateOf, isFigureColor, type FigureColor } from "./IKnowFigure";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import PracticeScreen, { PAGE_CONTEXT } from "./PracticeScreen";
 import LiveAnswer, { SketchFeed } from "./LiveAnswer";
@@ -101,6 +102,9 @@ export default function Lab() {
   const [meta, setMeta] = useState<AnswerMeta | null>(null);
   const [feed, setFeed] = useState<SketchFeed | null>(null);
   const [voice, setVoice] = useState(true);
+  const [figure, setFigure] = useState<FigureColor>("uv");
+  useEffect(() => { try { const v = localStorage.getItem("iknow-figur"); if (isFigureColor(v)) setFigure(v); } catch { /* ohne Speicher weiter */ } }, []);
+  const chooseFigure = (v: FigureColor) => { setFigure(v); try { localStorage.setItem("iknow-figur", v); } catch { /* ohne Speicher weiter */ } };
   const [finished, setFinished] = useState(false);
   const [history, setHistory] = useState<{ question: string; answer: string }[]>([]);
   const [followUp, setFollowUp] = useState("");
@@ -507,6 +511,7 @@ export default function Lab() {
         {seg(source, setSource, [["daten", "Daten aus der App"], ["screenshot", "Bildschirmfoto"]], "Quelle")}
         {seg(render, setRender, [["auto", "Automatisch"], ["baustein", "Baustein"], ["frei", "Frei zeichnen"]], "Darstellung")}
         {seg(tier, setTier, [["ultrafast", "Ultrafast"], ["standard", "Standard"]], "Modus")}
+        {seg(figure, chooseFigure, FIGURE_COLOR_KEYS.map((k) => [k, FIGURE_COLORS[k].name] as [FigureColor, string]), "Figur")}
         <div className="lab-right">
           {sharing && <button type="button" className="lab-btn" onClick={stopSharing}>Freigabe beenden</button>}
           {<button type="button" className={"lab-btn" + (voice ? " on" : "")} onClick={() => { setVoice((v) => !v); stopSpeaking(); }} aria-pressed={voice}>{voice ? "Stimme an" : "Stimme aus"}</button>}
@@ -518,8 +523,8 @@ export default function Lab() {
 
       <PracticeScreen onViewer={onViewer} />
 
-      <button className={"ik-fab" + (phase !== "idle" ? " on" : "")} type="button" onClick={() => (phase === "idle" ? begin() : reset())} aria-label="IKnow fragen: Bereich umrahmen">
-        <i><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><circle cx="12" cy="12" r="2.5" /></svg></i>
+      <button className={"ik-fab fig" + (phase !== "idle" ? " on" : "")} type="button" style={{ ["--ikf-pill" as string]: FIGURE_COLORS[figure].pill }} onClick={() => (phase === "idle" ? begin() : reset())} aria-label="IKnow fragen: Bereich umrahmen">
+        <IKnowFigure state={figureStateOf(phase, listening === "rec")} color={figure} />
         <span>{phase === "idle" ? "IKnow fragen" : "Abbrechen"}<small>erst umranden, dann fragen · Leertaste</small></span>
       </button>
 
