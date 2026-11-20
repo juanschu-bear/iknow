@@ -71,7 +71,7 @@ export default function IKnowFigure({ state = "idle", color = "uv", className = 
       <ellipse className="ikf-shadow" cx="120" cy="247" rx="60" ry="9.5" fill="#0a0620" opacity=".28" />
       <g className="ikf-bob">
         {arm("l", LS, ...LEFT[state], flex)}
-        {state !== "think" && arm("r", RS, ...RIGHT[state], flex || state === "draw")}
+        {state !== "think" && <g className={state === "idle" ? "ikf-hello" : undefined}>{arm("r", RS, ...RIGHT[state], flex || state === "draw")}</g>}
         <rect x="89" y="200" width="23" height="36" rx="11" fill={P.leg} /><rect x="128" y="200" width="23" height="36" rx="11" fill={P.leg} />
         <ellipse cx="98" cy="238" rx="18" ry="9" fill={P.foot} /><ellipse cx="142" cy="238" rx="18" ry="9" fill={P.foot} />
         <path d="M66 152 Q66 138 82 138 L158 138 Q174 138 174 152 L156 204 Q154 212 145 212 L95 212 Q86 212 84 204 Z" fill={g("b")} />
@@ -89,7 +89,7 @@ export default function IKnowFigure({ state = "idle", color = "uv", className = 
           strokeDasharray={state === "draw" ? "17 12" : undefined} strokeLinecap={state === "draw" ? "round" : undefined} />
         <ellipse cx="92" cy="58" rx="26" ry="9" fill="#fff" opacity=".85" transform="rotate(-14 92 58)" />
         <circle cx="76" cy="112" r="8.5" fill="#ff9fb8" opacity=".5" /><circle cx="164" cy="112" r="8.5" fill="#ff9fb8" opacity=".5" />
-        {state === "idle" && <>{eye(96)}{eye(144)}{mouth("M108 114 Q120 124 132 114")}</>}
+        {state === "idle" && <><g className="ikf-look">{eye(96)}{eye(144)}</g>{mouth("M108 114 Q120 124 132 114")}</>}
         {state === "draw" && <>{eye(96, 3, -2, 11, 15, false)}{eye(144, 3, -2, 11, 15, false)}{brow("M86 70 Q96 67 106 71")}{brow("M134 71 Q144 66 154 68")}{mouth("M110 115 Q122 122 132 113")}</>}
         {state === "ask" && <>{eye(96, 0, 0, 12, 17)}{eye(144, 0, 0, 12, 17)}{brow("M84 66 Q96 60 108 65")}{brow("M132 65 Q144 60 156 66")}<ellipse cx="120" cy="118" rx="5.5" ry="6.5" fill={P.ink} /></>}
         {state === "think" && <>{eye(96, -5, -4, 11, 15, false)}{eye(144, -5, -4, 11, 15, false)}{brow("M84 73 L106 70")}{brow("M134 66 L156 70")}{mouth("M110 118 L130 115")}</>}

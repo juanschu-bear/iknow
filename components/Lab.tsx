@@ -523,7 +523,7 @@ export default function Lab() {
 
       <PracticeScreen onViewer={onViewer} />
 
-      <button className={"ik-fab fig" + (phase !== "idle" ? " on" : "")} type="button" style={{ ["--ikf-pill" as string]: FIGURE_COLORS[figure].pill }} onClick={() => (phase === "idle" ? begin() : reset())} aria-label="IKnow fragen: Bereich umrahmen">
+      <button className={"ik-fab fig" + (phase !== "idle" ? " on" : "")} type="button" onClick={() => (phase === "idle" ? begin() : reset())} aria-label="IKnow fragen: Bereich umrahmen">
         <IKnowFigure state={figureStateOf(phase, listening === "rec")} color={figure} />
         <span>{phase === "idle" ? "IKnow fragen" : "Abbrechen"}<small>erst umranden, dann fragen · Leertaste</small></span>
       </button>
