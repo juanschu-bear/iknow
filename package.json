@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@vercel/blob": "2.8.2",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "openai": "7.45.1",
     "pdfjs-dist": "6.4.299",
     "react": "19.3.1",
