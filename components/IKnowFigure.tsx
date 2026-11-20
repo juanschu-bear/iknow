@@ -13,7 +13,7 @@ export const FIGURE_COLORS: Record<FigureColor, Palette> = {
 };
 
 export const FIGURE_COLOR_KEYS = Object.keys(FIGURE_COLORS) as FigureColor[];
-export const isFigureColor = (v: unknown): v is FigureColor => typeof v === "string" && v in FIGURE_COLORS;
+export const isFigureColor = (v: unknown): v is FigureColor => typeof v === "string" && Object.hasOwn(FIGURE_COLORS, v);
 
 /** Schritt von IKnow → Haltung der Figur. Beim Diktieren hört sie zu, egal in welchem Schritt. */
 export function figureStateOf(phase: "idle" | "draw" | "ask" | "thinking" | "answer", listening: boolean): FigureState {
