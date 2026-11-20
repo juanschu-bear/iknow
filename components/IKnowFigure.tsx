@@ -1,7 +1,7 @@
 import { useId, type ReactNode } from "react";
 
 /** Die IKnow-Figur. Ihr Kopf ist der Rahmen, den man zieht; der Zustand folgt den Schritten von IKnow. */
-export type FigureState = "idle" | "draw" | "ask" | "think" | "answer";
+export type FigureState = "idle" | "laptop" | "draw" | "ask" | "think" | "answer";
 export type FigureColor = "uv" | "gr" | "bk";
 
 type Palette = { name: string; pill: string; b1: string; b2: string; arm: string; frame: string; ink: string; h1: string; h2: string; h3: string; acc: string; sig: string; leg: string; foot: string; hand: string };
@@ -24,13 +24,13 @@ export function figureStateOf(phase: "idle" | "draw" | "ask" | "thinking" | "ans
 
 type Pt = [number, number];
 const LEFT: Record<FigureState, [Pt, Pt]> = {
-  idle: [[48, 178], [54, 201]], draw: [[48, 178], [54, 201]], ask: [[48, 178], [54, 201]], think: [[44, 176], [70, 192]], answer: [[32, 152], [30, 119]],
+  idle: [[48, 178], [54, 201]], laptop: [[50, 184], [96, 200]], draw: [[48, 178], [54, 201]], ask: [[48, 178], [54, 201]], think: [[44, 176], [70, 192]], answer: [[32, 152], [30, 119]],
 };
 const RIGHT: Record<FigureState, [Pt, Pt]> = {
-  idle: [[192, 178], [186, 201]], draw: [[202, 152], [208, 122]], ask: [[204, 158], [200, 120]], think: [[190, 180], [160, 153]], answer: [[208, 152], [210, 119]],
+  idle: [[192, 178], [186, 201]], laptop: [[190, 184], [144, 200]], draw: [[202, 152], [208, 122]], ask: [[204, 158], [200, 120]], think: [[190, 180], [160, 153]], answer: [[208, 152], [210, 119]],
 };
 
-export default function IKnowFigure({ state = "idle", color = "uv", className = "" }: { state?: FigureState; color?: FigureColor; className?: string }) {
+export default function IKnowFigure({ state = "idle", color = "uv", walking = false, className = "" }: { state?: FigureState; color?: FigureColor; walking?: boolean; className?: string }) {
   const P = FIGURE_COLORS[color];
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const g = (k: string) => `url(#${id}${k})`;
@@ -60,7 +60,7 @@ export default function IKnowFigure({ state = "idle", color = "uv", className = 
   const flex = state === "answer";
 
   return (
-    <svg className={"ikf " + className} viewBox="-14 -6 268 268" aria-hidden="true" focusable="false">
+    <svg className={"ikf " + (walking ? "ikf-walking " : "") + className} viewBox="-14 -6 268 268" aria-hidden="true" focusable="false">
       <defs>
         <linearGradient id={id + "h"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={P.h1} /><stop offset=".55" stopColor={P.h2} /><stop offset="1" stopColor={P.h3} /></linearGradient>
         <linearGradient id={id + "b"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={P.b1} /><stop offset="1" stopColor={P.b2} /></linearGradient>
@@ -70,10 +70,10 @@ export default function IKnowFigure({ state = "idle", color = "uv", className = 
       </defs>
       <ellipse className="ikf-shadow" cx="120" cy="247" rx="60" ry="9.5" fill="#0a0620" opacity=".28" />
       <g className="ikf-bob">
-        {arm("l", LS, ...LEFT[state], flex)}
-        {state !== "think" && <g className={state === "idle" ? "ikf-hello" : undefined}>{arm("r", RS, ...RIGHT[state], flex || state === "draw")}</g>}
-        <rect x="89" y="200" width="23" height="36" rx="11" fill={P.leg} /><rect x="128" y="200" width="23" height="36" rx="11" fill={P.leg} />
-        <ellipse cx="98" cy="238" rx="18" ry="9" fill={P.foot} /><ellipse cx="142" cy="238" rx="18" ry="9" fill={P.foot} />
+        {state !== "laptop" && arm("l", LS, ...LEFT[state], flex)}
+        {state !== "think" && state !== "laptop" && <g className={state === "idle" ? "ikf-hello" : undefined}>{arm("r", RS, ...RIGHT[state], flex || state === "draw")}</g>}
+        <g className="ikf-leg ikf-leg-l"><rect x="89" y="200" width="23" height="36" rx="11" fill={P.leg} /><ellipse cx="98" cy="238" rx="18" ry="9" fill={P.foot} /></g>
+        <g className="ikf-leg ikf-leg-r"><rect x="128" y="200" width="23" height="36" rx="11" fill={P.leg} /><ellipse cx="142" cy="238" rx="18" ry="9" fill={P.foot} /></g>
         <path d="M66 152 Q66 138 82 138 L158 138 Q174 138 174 152 L156 204 Q154 212 145 212 L95 212 Q86 212 84 204 Z" fill={g("b")} />
         <circle cx="64" cy="153" r="16" fill={g("m")} /><circle cx="176" cy="153" r="16" fill={g("m")} />
         <path d="M92 158 Q106 172 120 160 Q134 172 148 158" fill="none" stroke="#fff" strokeOpacity=".28" strokeWidth="3" strokeLinecap="round" />
@@ -90,6 +90,7 @@ export default function IKnowFigure({ state = "idle", color = "uv", className = 
         <ellipse cx="92" cy="58" rx="26" ry="9" fill="#fff" opacity=".85" transform="rotate(-14 92 58)" />
         <circle cx="76" cy="112" r="8.5" fill="#ff9fb8" opacity=".5" /><circle cx="164" cy="112" r="8.5" fill="#ff9fb8" opacity=".5" />
         {state === "idle" && <><g className="ikf-look">{eye(96)}{eye(144)}</g>{mouth("M108 114 Q120 124 132 114")}</>}
+        {state === "laptop" && <>{eye(96, -2, 5)}{eye(144, -2, 5)}{mouth("M106 113 Q120 126 134 113")}</>}
         {state === "draw" && <>{eye(96, 3, -2, 11, 15, false)}{eye(144, 3, -2, 11, 15, false)}{brow("M86 70 Q96 67 106 71")}{brow("M134 71 Q144 66 154 68")}{mouth("M110 115 Q122 122 132 113")}</>}
         {state === "ask" && <>{eye(96, 0, 0, 12, 17)}{eye(144, 0, 0, 12, 17)}{brow("M84 66 Q96 60 108 65")}{brow("M132 65 Q144 60 156 66")}<ellipse cx="120" cy="118" rx="5.5" ry="6.5" fill={P.ink} /></>}
         {state === "think" && <>{eye(96, -5, -4, 11, 15, false)}{eye(144, -5, -4, 11, 15, false)}{brow("M84 73 L106 70")}{brow("M134 66 L156 70")}{mouth("M110 118 L130 115")}</>}
@@ -99,6 +100,14 @@ export default function IKnowFigure({ state = "idle", color = "uv", className = 
           <path d="M104 108 Q120 132 136 108 Z" fill={P.ink} /><path d="M111 119 Q120 127 129 119 Q120 115 111 119Z" fill="#ff8fa8" />
         </>}
         {state === "think" && arm("rf", RS, ...RIGHT.think, false)}
+        {state === "laptop" && <>
+          {arm("lf", LS, ...LEFT.laptop, false)}{arm("rf", RS, ...RIGHT.laptop, false)}
+          <g className="ikf-open">
+            <rect x="88" y="158" width="64" height="42" rx="7" fill={P.ink} stroke={P.frame} strokeWidth="3" />
+            <circle cx="120" cy="179" r="13" fill={g("a")} className="ikf-pulse" /><circle cx="120" cy="173" r="2.8" fill={P.acc} /><rect x="117.6" y="177" width="4.8" height="10" rx="2.4" fill={P.acc} />
+            <rect x="80" y="198" width="80" height="9" rx="4.5" fill={P.frame} />
+          </g>
+        </>}
         {state === "draw" && <>
           <g transform="rotate(38 208 122)"><rect x="203" y="86" width="10" height="38" rx="4" fill={P.ink} /><path d="M203 86 h10 l-5 -11z" fill={P.sig} /></g>
           <circle cx="236" cy="84" r="13" fill={g("g")} className="ikf-pulse" />

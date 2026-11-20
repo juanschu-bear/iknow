@@ -1,6 +1,7 @@
 "use client";
 
-import IKnowFigure, { FIGURE_COLORS, FIGURE_COLOR_KEYS, figureStateOf, isFigureColor, type FigureColor } from "./IKnowFigure";
+import IKnowBuddy from "./IKnowBuddy";
+import { FIGURE_COLORS, FIGURE_COLOR_KEYS, isFigureColor, type FigureColor } from "./IKnowFigure";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import PracticeScreen, { PAGE_CONTEXT } from "./PracticeScreen";
 import LiveAnswer, { SketchFeed } from "./LiveAnswer";
@@ -345,7 +346,7 @@ export default function Lab() {
     setRect(box);
     // Umrandung an den Inhalt heften: Scrollpositionen merken, beim Scrollen mitwandern.
     const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
-    const under = document.elementsFromPoint(cx, cy).find((e) => !e.closest(".ik-layer,.ik-lasso,.ik-ask,.ik-ans,.ik-fab"));
+    const under = document.elementsFromPoint(cx, cy).find((e) => !e.closest(".ik-layer,.ik-lasso,.ik-ask,.ik-ans,.ik-fab,.ik-buddy"));
     const anchors: { el: Element | null; top: number; left: number }[] = [{ el: null, top: window.scrollY, left: window.scrollX }];
     for (let e = under?.parentElement ?? null; e; e = e.parentElement) {
       const st = getComputedStyle(e);
@@ -523,10 +524,7 @@ export default function Lab() {
 
       <PracticeScreen onViewer={onViewer} />
 
-      <button className={"ik-fab fig" + (phase !== "idle" ? " on" : "")} type="button" onClick={() => (phase === "idle" ? begin() : reset())} aria-label="IKnow fragen: Bereich umrahmen">
-        <IKnowFigure state={figureStateOf(phase, listening === "rec")} color={figure} />
-        <span>{phase === "idle" ? "IKnow fragen" : "Abbrechen"}<small>erst umranden, dann fragen · Leertaste</small></span>
-      </button>
+      <IKnowBuddy phase={phase} listening={listening === "rec"} color={figure} title="IKnow fragen" cancel="Abbrechen" hint="erst umranden, dann fragen · Leertaste" label="IKnow fragen: Bereich umrahmen" onActivate={() => (phase === "idle" ? begin() : reset())} />
 
       {listening !== "off" && <div className={"ik-mic " + listening}><i />{listening === "rec" ? "Ich höre zu … Leertaste loslassen" : "Verstehe …"}</div>}
       {phase === "draw" && (
